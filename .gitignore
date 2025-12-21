@@ -1,0 +1,49 @@
+# =========================
+# Python / Django
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+db.sqlite3
+*.sqlite3
+*.log
+
+# =========================
+# Virtual environment
+# =========================
+venv/
+ENV/
+env/
+*.env
+
+# =========================
+# Django / project files
+# =========================
+*.pot
+*.py[cod]
+*.mo
+*.coverage
+*.coverage.*
+htmlcov/
+local_settings.py
+media/
+staticfiles/
+*.sqlite3-journal
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# =========================
+# Large dumps / temp files
+# =========================
+project_dump.txt
+codebase_dumper.py
