@@ -6,8 +6,9 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Sum, F
 from django.utils import timezone
 
-from .models import Grade, Student, Semester
-# Ensure these permissions exist in your users/permissions.py
+# ✅ Fixed: Import Student from users.models
+from users.models import Student
+from .models import Grade, Semester
 from users.permissions import IsStudent, IsRegistrar, IsHOD, IsSuperAdmin, IsAdminStaff
 
 class TranscriptViewSet(viewsets.ViewSet):
@@ -29,124 +30,128 @@ class TranscriptViewSet(viewsets.ViewSet):
         # 1. Fetch all PUBLISHED grades for the student
         grades = Grade.objects.filter(
             student=student, 
-            status='published' # Using status='published' based on previous context
+            status='published' 
         ).select_related('course').order_by('session', 'semester', 'course__code')
+
+        # Student Info Wrapper
+        student_data = {
+            "name": student.user.get_full_name(),
+            "matric_number": student.matric_number,
+            "department": student.department.name if student.department else "N/A",
+            "level": student.level,
+            "admission_year": student.admission_date.year if student.admission_date else "N/A",
+            "generated_at": timezone.now().isoformat()
+        }
 
         if not grades.exists():
             return {
-                "student_info": self._get_student_info(student),
-                "academic_history": [],
-                "summary": {"cumulative_gpa": 0.0, "total_credits": 0, "degree_class": "N/A"}
+                "student": student_data,
+                "transcript": [],
+                "summary": {
+                    "cgpa": 0.0, 
+                    "total_credits_earned": 0, 
+                    "class_of_degree": "N/A"
+                }
             }
 
         # 2. Group by Session -> Semester
-        history = {}
-        
-        # Helper for Semester Ordering
+        transcript_map = {}
+        # Helper for sorting: First semester = 1, Second = 2
         sem_order = {'first': 1, 'second': 2}
         
         for grade in grades:
+            # Create a unique key for grouping
             key = (grade.session, grade.semester)
-            if key not in history:
-                history[key] = {
+            
+            if key not in transcript_map:
+                transcript_map[key] = {
                     "session": grade.session,
                     "semester": grade.semester,
-                    "semester_order": sem_order.get(grade.semester.lower(), 3),
+                    # Store sort key internally
+                    "_sort_order": sem_order.get(grade.semester.lower(), 3),
                     "courses": [],
-                    "total_points": 0.0,
-                    "total_credits": 0
+                    # raw totals for calculation
+                    "_total_points": 0.0,
+                    "_total_units": 0
                 }
             
             # Add Course Info
-            history[key]["courses"].append({
+            transcript_map[key]["courses"].append({
                 "code": grade.course.code,
                 "title": grade.course.title,
-                "credit_unit": grade.course.credits,
-                "score": grade.score,
+                "unit": grade.course.credits,
+                "score": float(grade.score),
                 "grade": grade.grade_letter,
-                "points": grade.grade_points
+                "points": float(grade.grade_points)
             })
 
-            # Aggregate for GPA
-            # Points for a course = Grade Point * Credit Unit
-            points_earned = float(grade.grade_points) * grade.course.credits
-            history[key]["total_points"] += points_earned
-            history[key]["total_credits"] += grade.course.credits
+            # Aggregate
+            points = float(grade.grade_points) * grade.course.credits
+            transcript_map[key]["_total_points"] += points
+            transcript_map[key]["_total_units"] += grade.course.credits
 
-        # 3. Calculate GPAs and Format Output
-        sorted_history = []
+        # 3. Format Output List & Calculate Cumulative
+        transcript_list = []
         cumulative_points = 0.0
-        cumulative_credits = 0
+        cumulative_units = 0
 
-        # Sort by Session (String comparison usually works for YYYY/YYYY) then Semester
-        sorted_keys = sorted(history.keys(), key=lambda x: (x[0], sem_order.get(x[1].lower(), 3)))
+        # Sort by Session (String sort works for YYYY/YYYY) then Semester Order
+        sorted_keys = sorted(transcript_map.keys(), key=lambda k: (k[0], transcript_map[k]["_sort_order"]))
 
         for key in sorted_keys:
-            data = history[key]
+            data = transcript_map[key]
+            
+            sem_units = data["_total_units"]
+            sem_points = data["_total_points"]
             
             # Semester GPA
-            sem_gpa = 0.0
-            if data["total_credits"] > 0:
-                sem_gpa = data["total_points"] / data["total_credits"]
+            sem_gpa = sem_points / sem_units if sem_units > 0 else 0.0
             
-            # Update Cumulative Stats
-            cumulative_points += data["total_points"]
-            cumulative_credits += data["total_credits"]
-            
-            # Current CGPA
-            curr_cgpa = 0.0
-            if cumulative_credits > 0:
-                curr_cgpa = cumulative_points / cumulative_credits
+            # Update Cumulative
+            cumulative_points += sem_points
+            cumulative_units += sem_units
 
-            sorted_history.append({
+            # Format for frontend
+            transcript_list.append({
                 "session": data["session"],
-                "semester": data["semester"],
+                "semester": data["semester"].capitalize(),
                 "courses": data["courses"],
-                "stats": {
-                    "total_credits_registered": data["total_credits"],
-                    "total_points_earned": round(data["total_points"], 2),
+                "semester_stats": {
                     "gpa": round(sem_gpa, 2),
-                    "cgpa": round(curr_cgpa, 2) # CGPA at the end of this semester
+                    "total_units": sem_units,
+                    "total_points": round(sem_points, 2)
                 }
             })
 
         # 4. Final Summary
-        final_cgpa = 0.0
-        if cumulative_credits > 0:
-            final_cgpa = cumulative_points / cumulative_credits
+        cgpa = cumulative_points / cumulative_units if cumulative_units > 0 else 0.0
 
         return {
-            "student_info": self._get_student_info(student),
-            "academic_history": sorted_history,
+            "student": student_data,
+            "transcript": transcript_list,
             "summary": {
-                "cumulative_gpa": round(final_cgpa, 2),
-                "total_credits_completed": cumulative_credits,
+                "cgpa": round(cgpa, 2),
+                "cumulative_gpa": round(cgpa, 2), 
+                "total_credits_completed": cumulative_units,
+                "total_credits_earned": cumulative_units, # For compatibility
                 "total_points_earned": round(cumulative_points, 2),
-                "degree_class": self._get_degree_class(final_cgpa)
+                "class_of_degree": self._get_degree_class(cgpa),
+                "degree_class": self._get_degree_class(cgpa) # For compatibility
             }
-        }
-
-    def _get_student_info(self, student):
-        return {
-            "full_name": student.user.get_full_name(),
-            "matric_number": student.matric_number,
-            "department": student.department.name if student.department else "N/A",
-            "level": student.level,
-            "passport_url": student.user.profile_picture.url if student.user.profile_picture else None,
-            "generated_at": timezone.now().isoformat()
         }
 
     def _get_degree_class(self, cgpa):
         if cgpa >= 4.50: return "First Class"
-        elif cgpa >= 3.50: return "Second Class Upper"
-        elif cgpa >= 2.40: return "Second Class Lower"
-        elif cgpa >= 1.50: return "Third Class"
-        else: return "Fail / Withdraw"
+        if cgpa >= 3.50: return "Second Class Upper"
+        if cgpa >= 2.40: return "Second Class Lower"
+        if cgpa >= 1.50: return "Third Class"
+        return "Pass"
 
     @action(detail=False, methods=['get'])
     def my_transcript(self, request):
         """
         Endpoint for students to view their own transcript.
+        URL: /api/academics/transcripts/my_transcript/
         """
         if not hasattr(request.user, 'student_profile'):
             return Response({"error": "Student profile not found"}, status=400)
@@ -155,9 +160,10 @@ class TranscriptViewSet(viewsets.ViewSet):
         return Response(data)
 
     @action(detail=False, methods=['get'])
-    def view_student_transcript(self, request):
+    def generate(self, request):
         """
         Endpoint for Admins (Registrar/HOD) to view any student's transcript.
+        URL: /api/academics/transcripts/generate/?student_id=123
         """
         student_id = request.query_params.get('student_id')
         if not student_id:
@@ -165,7 +171,7 @@ class TranscriptViewSet(viewsets.ViewSet):
 
         student = get_object_or_404(Student, id=student_id)
         
-        # HOD Permission Check (Can only view own department)
+        # HOD Permission Check
         if request.user.role == 'hod' and hasattr(request.user, 'lecturer_profile'):
             hod_dept = request.user.lecturer_profile.department
             if student.department != hod_dept:

@@ -7,10 +7,12 @@ from rest_framework.views import APIView
 from datetime import timedelta
 from django.db.models import Sum
 
-# ✅ Updated Imports
+# ✅ Models
 from .models import Semester, CourseOffering, CourseRegistration, Grade, StudentAcademicRecord
 from users.models import Student
 from finance.models import Invoice
+
+# ✅ Serializers
 from .serializers import (
     SemesterSerializer, 
     CourseOfferingSerializer, 
@@ -39,7 +41,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def registration_status(self, request):
-        """Get student's registration status"""
+        """Get student's registration status with Fee Check"""
         if not hasattr(request.user, 'student_profile'):
             return Response(
                 {'error': 'Student profile not found'},
@@ -55,7 +57,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
                 'message': 'No current semester set'
             })
         
-        # ✅ Updated Model Name
+        # Count existing registrations
         registrations = CourseRegistration.objects.filter(
             student=student,
             course_offering__semester=current_semester,
@@ -77,6 +79,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             semester=current_semester.semester
         ).first()
         
+        # Check if invoice exists and is fully paid
         if invoice and invoice.status == 'paid':
             has_paid_fees = True
         
@@ -84,11 +87,11 @@ class StudentDashboardViewSet(viewsets.ViewSet):
         is_registration_active = current_semester.is_registration_active
         registration_deadline = current_semester.registration_deadline
         
+        # Logic: Can only register if fees paid AND registration open
         can_register = (
             has_paid_fees and 
             is_registration_active and 
-            # Check course limit (e.g. 12 for testing)
-            (registrations.count() + pending_registrations.count()) < 12
+            (registrations.count() + pending_registrations.count()) < 12 # Max course limit
         )
         
         return Response({
@@ -107,7 +110,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
                 'has_paid_fees': has_paid_fees,
                 'can_register': can_register,
                 'registered_courses': registrations.count(),
-                'max_courses': 12, # Increased for testing
+                'max_courses': 12,
                 'total_credits': sum(
                     r.course_offering.course.credits for r in registrations
                 ) if registrations.exists() else 0
@@ -129,11 +132,11 @@ class StudentDashboardViewSet(viewsets.ViewSet):
         if not current_semester:
             return Response([])
         
-        # ✅ Updated Model Name
+        # Get registered courses
         registrations = CourseRegistration.objects.filter(
             student=student,
             course_offering__semester=current_semester,
-            status__in=['registered', 'approved_lecturer']
+            status__in=['registered', 'approved_lecturer', 'approved_exam_officer']
         ).select_related(
             'course_offering__course',
             'course_offering__course__department',
@@ -142,6 +145,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
         
         results = []
         for reg in registrations:
+            # Check for grades
             grade = Grade.objects.filter(
                 student=student,
                 course=reg.course_offering.course,
@@ -185,7 +189,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
         if not current_semester:
             return Response([])
         
-        # ✅ Updated Model Name
+        # Exclude already registered courses
         current_registrations = CourseRegistration.objects.filter(
             student=student,
             course_offering__semester=current_semester
@@ -205,7 +209,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             'lecturer__user'
         )
         
-        # Check capacity
+        # Filter by capacity
         available_offerings = [
             offering for offering in available_offerings 
             if offering.enrolled_count < offering.capacity
@@ -214,16 +218,15 @@ class StudentDashboardViewSet(viewsets.ViewSet):
         serializer = CourseOfferingSerializer(available_offerings, many=True)
         return Response(serializer.data)
     
-    # ✅ NEW ACTION FOR TRANSCRIPT/HISTORY
     @action(detail=False, methods=['get'])
     def academic_history(self, request):
-        """Get complete academic history grouped by semester"""
+        """Get complete academic history grouped by semester (For GPA/CGPA)"""
         if not hasattr(request.user, 'student_profile'):
             return Response({'error': 'Student profile not found'}, status=400)
 
         student = request.user.student_profile
         
-        # 1. Fetch all PUBLISHED grades directly (More robust than AcademicRecord)
+        # 1. Fetch all PUBLISHED grades directly 
         grades = Grade.objects.filter(
             student=student,
             status='published'
@@ -262,11 +265,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
         cumulative_points = 0.0
         cumulative_units = 0
         
-        # Sort semesters (Latest first)
-        # Assuming format "YYYY/YYYY_semester" can be sorted string-wise roughly correctly, 
-        # or relying on the DB order we fetched.
-        # Since we iterate a dict, order might be lost in older python, but 3.7+ keeps insertion order.
-        # DB sort was: -session, -semester. So keys are inserted latest first.
+        # Sort keys to ensure correct order if needed (though map iteration usually preserves insertion in modern Python)
         
         for key in history_map:
             data = history_map[key]
@@ -280,7 +279,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             
             history_list.append({
                 'session': data['session'],
-                'semester': data['semester'].capitalize(), # 'First', 'Second'
+                'semester': data['semester'].capitalize(),
                 'gpa': round(gpa, 2),
                 'total_units': data['total_units'],
                 'courses': data['courses']
@@ -301,7 +300,6 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             'history': history_list
         })
         
-    # ✅ NEW ACTION: Exam Card Generation
     @action(detail=False, methods=['get'])
     def exam_card(self, request):
         """Generate Exam Card Data"""
@@ -331,7 +329,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
         registrations = CourseRegistration.objects.filter(
             student=student,
             course_offering__semester=current_semester,
-            status='registered'
+            status__in=['registered', 'approved_exam_officer']
         ).select_related('course_offering__course')
 
         if not registrations.exists():
