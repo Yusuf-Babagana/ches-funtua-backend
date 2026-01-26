@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-
+from users.models import User, Student, Lecturer
 
 class Department(models.Model):
     """Academic departments"""
@@ -80,7 +80,7 @@ class Semester(models.Model):
         verbose_name_plural = 'Semesters'
     
     def __str__(self):
-        return f"{self.session} - {self.get_semester_display()}"
+        return f"{self.session} - {self.get_semester_display()} Semester"
     
     def clean(self):
         # Ensure only one current semester exists
@@ -91,9 +91,24 @@ class Semester(models.Model):
         if self.is_current:
             Semester.objects.filter(is_current=True).exclude(id=self.id).update(is_current=False)
         super().save(*args, **kwargs)
+
+# ✅ NEW MODEL: Handles Level-Specific Calendars
+class AcademicLevelConfiguration(models.Model):
+    LEVEL_CHOICES = [
+        ('100', '100'),
+        ('200', '200'),
+        ('300', '300'),
+    ]
     
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, unique=True)
+    current_semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='level_configs')
+    is_registration_open = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['level']
+        
     def __str__(self):
-        return f"{self.session} - {self.get_semester_display()} Semester"
+        return f"Level {self.level} Config ({self.current_semester})"
 
 
 class CourseOffering(models.Model):
@@ -125,8 +140,6 @@ class Enrollment(models.Model):
         ('failed', 'Failed'),
     ]
 
-
-
     student = models.ForeignKey('users.Student', on_delete=models.CASCADE, related_name='enrollments')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='enrollments')
     session = models.CharField(max_length=9)  # e.g., 2024/2025
@@ -150,13 +163,10 @@ class Grade(models.Model):
     """Student grades with 4.0 GPA scale"""
     GRADE_CHOICES = [
         ('A', 'A (4.0)'),
-        ('A-', 'A- (3.7)'),
-        ('B+', 'B+ (3.3)'),
         ('B', 'B (3.0)'),
-        ('B-', 'B- (2.7)'),
-        ('C+', 'C+ (2.3)'),
         ('C', 'C (2.0)'),
         ('D', 'D (1.0)'),
+        ('E', 'E'),
         ('F', 'F (0.0)'),
     ]
 
@@ -171,37 +181,29 @@ class Grade(models.Model):
     
     student = models.ForeignKey('users.Student', on_delete=models.CASCADE, related_name='grades')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='grades')
-    enrollment = models.OneToOneField(Enrollment, on_delete=models.CASCADE, related_name='grade')
-    score = models.DecimalField(max_digits=5, decimal_places=2)
-    grade_letter = models.CharField(max_length=2, choices=GRADE_CHOICES)
-    grade_points = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
-    semester = models.CharField(max_length=20)
-    session = models.CharField(max_length=9)
-    uploaded_by = models.ForeignKey('users.Lecturer', on_delete=models.SET_NULL, null=True)
-    remarks = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    is_published = models.BooleanField(default=False)
-    status = models.CharField(max_length=20, choices=RESULT_STATUS, default='draft')
-
-
-    # ✅ NEW FIELD: Controls visibility to students
-    is_published = models.BooleanField(default=False) 
-
-    # ✅ NEW FIELDS
+    enrollment = models.OneToOneField(Enrollment, on_delete=models.CASCADE, related_name='grade', null=True)
+    
+    # Score Components
     ca_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     exam_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
-
-    @property
-    def is_published(self):
-        return self.status == 'published'
-
+    score = models.DecimalField(max_digits=5, decimal_places=2) # Total
     
-    # Total Score
-    score = models.DecimalField(max_digits=5, decimal_places=2)
+    grade_letter = models.CharField(max_length=2, choices=GRADE_CHOICES)
+    grade_points = models.DecimalField(max_digits=4, decimal_places=2, default=0.00)
+    
+    # Metadata
+    session = models.CharField(max_length=20)
+    semester = models.CharField(max_length=10)
+    
+    # Workflow
+    uploaded_by = models.ForeignKey('users.Lecturer', on_delete=models.SET_NULL, null=True)
+    status = models.CharField(max_length=20, choices=RESULT_STATUS, default='draft')
+    
+    remarks = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['-created_at']
         unique_together = ['student', 'course', 'session', 'semester']
         verbose_name = 'Grade'
         verbose_name_plural = 'Grades'
@@ -212,30 +214,27 @@ class Grade(models.Model):
     def calculate_grade_points(self):
         """Calculate grade points based on 4.0 scale"""
         grade_point_map = {
-            'A': 4.0, 'A-': 3.7, 'B+': 3.3, 'B': 3.0, 'B-': 2.7,
-            'C+': 2.3, 'C': 2.0, 'D': 1.0, 'F': 0.0
+            'A': 4.0, 'B': 3.0, 'C': 2.0, 'D': 1.0, 'E': 0.5, 'F': 0.0
         }
         return grade_point_map.get(self.grade_letter, 0.0)
     
     def calculate_grade_letter(self):
         """Calculate grade letter based on score"""
-        if self.score >= 90: return 'A'
-        elif self.score >= 85: return 'A-'
-        elif self.score >= 80: return 'B+'
-        elif self.score >= 75: return 'B'
-        elif self.score >= 70: return 'B-'
-        elif self.score >= 65: return 'C+'
-        elif self.score >= 60: return 'C'
-        elif self.score >= 50: return 'D'
+        if self.score >= 70: return 'A'
+        elif self.score >= 60: return 'B'
+        elif self.score >= 50: return 'C'
+        elif self.score >= 45: return 'D'
+        elif self.score >= 40: return 'E'
         else: return 'F'
     
     def save(self, *args, **kwargs):
+        # Auto-calculate letter and points
+        total = float(self.score)
         self.grade_letter = self.calculate_grade_letter()
         self.grade_points = self.calculate_grade_points()
         super().save(*args, **kwargs)
 
 
-# ✅ RENAMED FROM 'Registration' TO 'CourseRegistration' TO FIX ERROR
 class CourseRegistration(models.Model):
     """Student course registration for specific semesters with approval workflow"""
     STATUS_CHOICES = [
@@ -253,25 +252,27 @@ class CourseRegistration(models.Model):
     course_offering = models.ForeignKey(CourseOffering, on_delete=models.CASCADE, related_name='registrations')
     registration_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
-    is_payment_verified = models.BooleanField(default=False)
-    payment_verified_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_registrations')
-    payment_verified_date = models.DateTimeField(null=True, blank=True)
+    
+    # Approval chain
     approved_by_lecturer = models.ForeignKey('users.Lecturer', on_delete=models.SET_NULL, null=True, blank=True, related_name='lecturer_approvals')
     approved_by_exam_officer = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='exam_officer_approvals')
     approved_date = models.DateTimeField(null=True, blank=True)
+    
+    # Payment Verification
+    is_payment_verified = models.BooleanField(default=False)
+    payment_verified_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_registrations')
+    payment_verified_date = models.DateTimeField(null=True, blank=True)
+    
+    remarks = models.TextField(blank=True, null=True)
     rejection_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    #If a grade is assigned later
-    grade = models.CharField(max_length=2, blank=True, null=True) 
-    score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
 
-    
     class Meta:
-       unique_together = ['student', 'course_offering'] # Prevent double registration for the same offering
-       ordering = ['registration_date']
-       verbose_name = 'Course Registration'
-       verbose_name_plural = 'Course Registrations'
+        unique_together = ['student', 'course_offering'] # Prevent double registration for the same offering
+        ordering = ['registration_date']
+        verbose_name = 'Course Registration'
+        verbose_name_plural = 'Course Registrations'
     
     def __str__(self):
         return f"{self.student.matric_number} - {self.course_offering.course.code}"
@@ -316,9 +317,18 @@ class CourseRegistration(models.Model):
             return True
         return False
     
+    def reject_by_lecturer(self, user, reason):
+        if self.status == 'pending':
+            self.status = 'rejected_lecturer'
+            self.approved_by_lecturer = user # Still log who rejected
+            self.rejection_reason = reason
+            self.save()
+            return True
+        return False
+
     def approve_by_exam_officer(self, exam_officer):
         if self.can_be_approved_by_exam_officer:
-            self.status = 'registered'
+            self.status = 'registered' # Final state
             self.approved_by_exam_officer = exam_officer
             self.approved_date = timezone.now()
             self.save()
@@ -328,6 +338,15 @@ class CourseRegistration(models.Model):
                 status='registered'
             ).count()
             self.course_offering.save()
+            return True
+        return False
+        
+    def reject_by_exam_officer(self, user, reason):
+        if self.status == 'approved_lecturer':
+            self.status = 'rejected_exam_officer'
+            self.approved_by_exam_officer = user
+            self.rejection_reason = reason
+            self.save()
             return True
         return False
 
@@ -356,9 +375,6 @@ class CourseRegistration(models.Model):
         return True
     
     def save(self, *args, **kwargs):
-        if not self.pk:
-            #self.full_clean()
-            pass
         super().save(*args, **kwargs)
 
 
@@ -375,9 +391,9 @@ class StudentAcademicRecord(models.Model):
     session = models.CharField(max_length=9)
     semester = models.CharField(max_length=20)
     total_credits = models.IntegerField(default=0)
-    total_grade_points = models.DecimalField(max_digits=6, decimal_places=2, default=0.0)
-    gpa = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
-    cgpa = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
+    total_grade_points = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+    gpa = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
+    cgpa = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -445,7 +461,7 @@ class Attendance(models.Model):
         return f"{self.student.matric_number} - {self.course.code} - {self.date}"
 
 
-# --- NEW MODELS ADDED BELOW ---
+# --- NEW MODELS ---
 
 class StudentDocument(models.Model):
     """Model for student document uploads and verification"""

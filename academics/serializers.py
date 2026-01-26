@@ -7,9 +7,11 @@ from .models import (
     Attendance, 
     Semester, 
     CourseOffering, 
-    CourseRegistration, # ✅ Renamed from Registration
-    StudentAcademicRecord
+    CourseRegistration, 
+    StudentAcademicRecord,
+    AcademicLevelConfiguration # ✅ Added Import
 )
+from users.serializers import StudentSerializer, LecturerSerializer
 
 class DepartmentSerializer(serializers.ModelSerializer):
     """Department serializer with dynamic counts"""
@@ -81,6 +83,29 @@ class CourseDetailSerializer(CourseSerializer):
         }
 
 
+class SemesterSerializer(serializers.ModelSerializer):
+    """Semester serializer"""
+    is_registration_active = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = Semester
+        fields = [
+            'id', 'session', 'semester', 'start_date', 'end_date',
+            'is_current', 'is_registration_active', 'registration_deadline', 
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+# ✅ NEW SERIALIZER for Level Configurations
+class AcademicLevelConfigurationSerializer(serializers.ModelSerializer):
+    semester_details = SemesterSerializer(source='current_semester', read_only=True)
+    
+    class Meta:
+        model = AcademicLevelConfiguration
+        fields = ['id', 'level', 'current_semester', 'semester_details', 'is_registration_open']
+
+
 class CourseOfferingSerializer(serializers.ModelSerializer):
     """Course offering serializer"""
     course_code = serializers.CharField(source='course.code', read_only=True)
@@ -115,7 +140,6 @@ class CourseOfferingSerializer(serializers.ModelSerializer):
         )
 
 
-# ✅ RENAMED FROM RegistrationSerializer
 class CourseRegistrationSerializer(serializers.ModelSerializer):
     """Course Registration serializer"""
     student_name = serializers.CharField(source='student.user.get_full_name', read_only=True)
@@ -132,7 +156,7 @@ class CourseRegistrationSerializer(serializers.ModelSerializer):
     approved_by_exam_officer_name = serializers.CharField(source='approved_by_exam_officer.get_full_name', read_only=True)
 
     class Meta:
-        model = CourseRegistration # ✅ Updated Model
+        model = CourseRegistration
         fields = [
             'id', 'student', 'student_name', 'matric_number',
             'course_offering', 'course_code', 'course_title', 'course_credits',
@@ -226,20 +250,6 @@ class AttendanceSerializer(serializers.ModelSerializer):
         return obj.marked_by.user.get_full_name() if obj.marked_by else None
 
 
-class SemesterSerializer(serializers.ModelSerializer):
-    """Semester serializer"""
-    is_registration_active = serializers.BooleanField(read_only=True)
-    
-    class Meta:
-        model = Semester
-        fields = [
-            'id', 'session', 'semester', 'start_date', 'end_date',
-            'is_current', 'is_registration_active', 'registration_deadline', 
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-
 class StudentTranscriptSerializer(serializers.Serializer):
     """Serializer for student transcript"""
     student = serializers.CharField(source='student.matric_number')
@@ -256,7 +266,7 @@ class RegistrationRequestSerializer(serializers.Serializer):
     course_offering_ids = serializers.ListField(
         child=serializers.IntegerField(),
         min_length=1,
-        max_length=6  # Maximum courses per semester
+        max_length=12  # Adjusted maximum
     )
     
     def validate_course_offering_ids(self, value):
@@ -293,7 +303,6 @@ class CourseRegistrationSummarySerializer(serializers.Serializer):
     current_semester = serializers.CharField()
 
 
-# ✅ COMPREHENSIVE SERIALIZER FOR GATEKEEPER FLOW
 class RegistrationEligibilitySerializer(serializers.Serializer):
     can_register = serializers.BooleanField()
     has_paid_fees = serializers.BooleanField()

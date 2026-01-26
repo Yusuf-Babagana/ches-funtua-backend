@@ -16,7 +16,9 @@ from .views_admin import (
     SuperAdminDepartmentViewSet, 
     SuperAdminCourseViewSet,
     SuperAdminManagementViewSet,
-    SystemHealthViewSet
+    SuperAdminSemesterViewSet,
+    SystemHealthViewSet,
+    LevelConfigurationViewSet
 )
 from .views_lecturer import (
     LecturerDashboardViewSet,
@@ -42,7 +44,6 @@ from .views_exam_officer import (
     ExamTimetableViewSet,
     ExamOfficerAPIView
 )
-# ✅ NEW IMPORTS FOR RESULT WORKFLOW
 from .views_result_workflow import (
     HODResultWorkflowViewSet,
     ExamOfficerResultWorkflowViewSet,
@@ -59,10 +60,8 @@ router.register(r'enrollments', EnrollmentViewSet, basename='enrollment')
 router.register(r'grades', GradeViewSet, basename='grade')
 router.register(r'attendance', AttendanceViewSet, basename='attendance')
 router.register(r'semesters', SemesterViewSet, basename='semester')
-router.register(r'transcripts', TranscriptViewSet, basename='transcript')
 
-# ✅ HOD ROUTES 
-# (ONLY REGISTER THIS ONCE)
+# HOD Routes
 router.register(r'hod/dashboard', HODDashboardViewSet, basename='hod-dashboard')
 
 # Registration
@@ -98,24 +97,25 @@ router.register(r'registration-approvals', RegistrationApprovalViewSet, basename
 # Super Admin Routes
 router.register(r'admin/departments', SuperAdminDepartmentViewSet, basename='admin-department')
 router.register(r'admin/courses', SuperAdminCourseViewSet, basename='admin-course')
+router.register(r'admin/semesters', SuperAdminSemesterViewSet, basename='admin-semesters')
 router.register(r'admin/management', SuperAdminManagementViewSet, basename='admin-management')
 router.register(r'admin/system-health', SystemHealthViewSet, basename='admin-system-health')
+router.register(r'admin/level-config', LevelConfigurationViewSet, basename='admin-level-config')
 
-# ✅ NEW RESULT WORKFLOW ROUTES
+# Result Workflow Routes
 router.register(r'workflow/hod/results', HODResultWorkflowViewSet, basename='hod-result-workflow')
 router.register(r'workflow/exam-officer/results', ExamOfficerResultWorkflowViewSet, basename='eo-result-workflow')
 router.register(r'workflow/registrar/results', RegistrarResultWorkflowViewSet, basename='registrar-result-workflow')
 
+# Transcript Route
+router.register(r'transcripts', TranscriptViewSet, basename='transcript')
+
 urlpatterns = [
-    # Explicit paths first
     path('current-semester/', CurrentSemesterAPIView.as_view(), name='current-semester'),
     path('registration-status/', StudentRegistrationStatusAPIView.as_view(), name='registration-status'),
     path('semesters/current/', CurrentSemesterAPIView.as_view(), name='semesters-current'),
     path('registrar/profile/', RegistrarAPIView.as_view(), name='registrar-profile'),
     path('exam-officer/profile/', ExamOfficerAPIView.as_view(), name='exam-officer-profile'),
-    
-    # ✅ NOTE: The 'hod/dashboard/department_overview/' path is REMOVED.
-    # The router handles this automatically.
     
     path('', include(router.urls)),
 ]

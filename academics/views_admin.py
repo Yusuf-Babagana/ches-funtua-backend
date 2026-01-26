@@ -5,8 +5,11 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.db.models import Count, Q
 
-from .models import Department, Course, Semester
-from .serializers import DepartmentSerializer, CourseSerializer
+from .models import Department, Course, Semester, AcademicLevelConfiguration
+from .serializers import (
+    DepartmentSerializer, CourseSerializer, SemesterSerializer,
+    AcademicLevelConfigurationSerializer
+)
 from users.models import Lecturer, Student
 from users.permissions import IsSuperAdmin
 from django.utils import timezone
@@ -30,88 +33,8 @@ class SuperAdminDepartmentViewSet(viewsets.ModelViewSet):
         ).all()
 
 
-    @action(detail=False, methods=['post'])
-    def start_new_session(self, request):
-        """
-        Start a new Academic Session (e.g. 2025/2026).
-        This automatically creates the First Semester for that session.
-        """
-        session_name = request.data.get('session') # e.g. "2025/2026"
-        start_date_str = request.data.get('start_date')
-        
-        if not session_name or not start_date_str:
-            return Response({'error': 'Session Name (e.g., 2025/2026) and Start Date are required'}, status=400)
 
-        try:
-            # Parse the date string to a date object
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-            
-            with transaction.atomic():
-                # 1. Deactivate ALL previous semesters
-                Semester.objects.all().update(is_current=False, is_registration_active=False)
-                
-                # 2. Create "First Semester" for the new session
-                new_semester = Semester.objects.create(
-                    session=session_name,
-                    semester='first',
-                    start_date=start_date,
-                    # End date approx 4 months (120 days) later
-                    end_date=start_date + timedelta(days=120),
-                    # Registration closes 3 weeks (21 days) after start
-                    registration_deadline=start_date + timedelta(days=21),
-                    is_current=True,
-                    is_registration_active=True
-                )
-                
-                return Response({
-                    'message': f'Session {session_name} started successfully.',
-                    'current_semester': f'{session_name} - First Semester'
-                })
-        except Exception as e:
-            print(f"Error starting session: {e}") # Log error to terminal
-            return Response({'error': str(e)}, status=500)
 
-    @action(detail=False, methods=['post'])
-    def promote_students(self, request):
-        """
-        Automatic Promotion Logic:
-        1. Level 300 -> Graduated
-        2. Level 200 -> Level 300
-        3. Level 100 -> Level 200
-        """
-        confirmation = request.data.get('confirm', False)
-        if not confirmation:
-            return Response({
-                'error': 'This is a destructive action. Please send { "confirm": true } to proceed.'
-            }, status=400)
-
-        with transaction.atomic():
-            # 1. Graduate Final Year (Level 300)
-            graduated_count = Student.objects.filter(
-                level='300', 
-                status='active'
-            ).update(status='graduated')
-
-            # 2. Promote Level 200 to 300
-            l3_count = Student.objects.filter(
-                level='200', 
-                status='active'
-            ).update(level='300')
-
-            # 3. Promote Level 100 to 200
-            l2_count = Student.objects.filter(
-                level='100', 
-                status='active'
-            ).update(level='200')
-
-        return Response({
-            'message': 'Promotion completed successfully',
-            'summary': {
-                'graduated': graduated_count,
-                'promoted_to_level_300': l3_count,
-                'promoted_to_level_200': l2_count
-            }
-        })
     
     @action(detail=True, methods=['post'])
     @transaction.atomic
@@ -216,6 +139,14 @@ class SuperAdminDepartmentViewSet(viewsets.ModelViewSet):
             })
         
         return Response(data)
+
+class SuperAdminSemesterViewSet(viewsets.ModelViewSet):
+    """
+    Full CRUD for Semesters (Sessions).
+    """
+    queryset = Semester.objects.all().order_by('-start_date')
+    serializer_class = SemesterSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
 
 class SuperAdminCourseViewSet(viewsets.ModelViewSet):
     """Course operations for Super Admin with Lecturer assignment"""
@@ -333,6 +264,35 @@ class SuperAdminCourseViewSet(viewsets.ModelViewSet):
             )
 
 
+# ✅ NEW: Manage Level Configurations
+class LevelConfigurationViewSet(viewsets.ModelViewSet):
+    """
+    Manage semester/session settings PER LEVEL (100, 200, 300).
+    """
+    queryset = AcademicLevelConfiguration.objects.select_related('current_semester').all()
+    serializer_class = AcademicLevelConfigurationSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    
+    @action(detail=False, methods=['post'])
+    def init_defaults(self, request):
+        """Helper to create defaults for all levels if missing"""
+        current_sem = Semester.objects.filter(is_current=True).first()
+        if not current_sem:
+            current_sem = Semester.objects.last()
+            
+        if not current_sem:
+            return Response({'error': 'No semester available'}, status=400)
+
+        created = []
+        for level in ['100', '200', '300']:
+            obj, _ = AcademicLevelConfiguration.objects.get_or_create(
+                level=level,
+                defaults={'current_semester': current_sem, 'is_registration_open': True}
+            )
+            created.append(level)
+            
+        return Response({'message': 'Initialized levels', 'levels': created})
+
 class SuperAdminManagementViewSet(viewsets.ViewSet):
     """Super Admin management operations across models"""
     permission_classes = [IsAuthenticated, IsSuperAdmin]
@@ -352,6 +312,8 @@ class SuperAdminManagementViewSet(viewsets.ViewSet):
             return Response({'error': 'Session Name (e.g., 2025/2026) and Start Date are required'}, status=400)
 
         try:
+            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+            
             with transaction.atomic():
                 # 1. Deactivate ALL previous semesters
                 Semester.objects.all().update(is_current=False, is_registration_active=False)
@@ -360,12 +322,18 @@ class SuperAdminManagementViewSet(viewsets.ViewSet):
                 new_semester = Semester.objects.create(
                     session=session_name,
                     semester='first',
-                    start_date=start_date,
+                    start_date=start_date_obj,
                     # End date approx 4 months later (can be edited later)
-                    end_date=timezone.datetime.strptime(start_date, "%Y-%m-%d").date() + timezone.timedelta(days=120),
-                    registration_deadline=timezone.datetime.strptime(start_date, "%Y-%m-%d").date() + timezone.timedelta(days=21),
+                    end_date=start_date_obj + timedelta(days=120),
+                    registration_deadline=start_date_obj + timedelta(days=21),
                     is_current=True,
                     is_registration_active=True
+                )
+                
+                # 3. Update Level Configs to point to this new semester
+                AcademicLevelConfiguration.objects.all().update(
+                    current_semester=new_semester,
+                    is_registration_open=True
                 )
                 
                 return Response({
