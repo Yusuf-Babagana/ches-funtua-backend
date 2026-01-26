@@ -10,7 +10,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security Settings
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+
+# ✅ UPDATED: Added funtua.pythonanywhere.com
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,funtua.pythonanywhere.com').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -27,7 +29,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     
-    # Local apps - now at project root
+    # Local apps
     'users',
     'academics',
     'finance',
@@ -37,7 +39,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Must be near top
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -127,35 +129,32 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# CORS Settings
+# --- CORS & CSRF Settings (CRITICAL FOR PRODUCTION) ---
+
+CORS_ALLOW_CREDENTIALS = True
+
+# 1. CORS: Who can fetch data? (Frontend Vercel URL)
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000'
+    default='http://localhost:3000,http://127.0.0.1:3000,https://ches-funtua-frontend.vercel.app'
 ).split(',')
 
-CORS_ALLOW_CREDENTIALS = True
-
-# CORS Settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://172.20.10.7:3000",  # Your network IP
-]
+# 2. CSRF: Who can send POST requests? (Frontend Vercel URL)
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='http://localhost:3000,https://ches-funtua-frontend.vercel.app'
+).split(',')
 
 
-# Paystack Configuration
-# settings.py
-PAYSTACK_SECRET_KEY = "sk_test_e965d34d77cf450271fb33124c98dfe7b82076e9" # Replace with your Secret Key
-PAYSTACK_PUBLIC_KEY = "pk_test_9ff457e4cdd9aae7f23fe2b4080e370af50b4a1c" # Replace with your Public Key
-FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
-
-CORS_ALLOW_CREDENTIALS = True
-
-# For development, you can also allow all origins (not recommended for production)
+# For development only
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 
 
+# Paystack Configuration
+# Wrapping in config() allows you to override these in .env on PythonAnywhere without code changes
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default="sk_test_e965d34d77cf450271fb33124c98dfe7b82076e9")
+PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default="pk_test_9ff457e4cdd9aae7f23fe2b4080e370af50b4a1c")
 
-
-AUTH_USER_MODEL = 'users.User'
+# Frontend URL for Callbacks
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
