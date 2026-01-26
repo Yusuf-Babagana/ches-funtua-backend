@@ -1,18 +1,24 @@
 """
 Django settings for College Management System
 """
+import os
 from pathlib import Path
 from datetime import timedelta
-from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security Settings
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-this-in-production')
-DEBUG = config('DEBUG', default=True, cast=bool)
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production')
 
-# ✅ UPDATED: Added funtua.pythonanywhere.com
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,funtua.pythonanywhere.com').split(',')
+# DEBUG: Default to True locally, False if set to 'False' in env
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+# Allowed Hosts: Includes localhost and your PythonAnywhere domain
+ALLOWED_HOSTS = os.environ.get(
+    'ALLOWED_HOSTS', 
+    'localhost,127.0.0.1,funtua.pythonanywhere.com'
+).split(',')
+
 
 # Application definition
 INSTALLED_APPS = [
@@ -133,28 +139,28 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_CREDENTIALS = True
 
-# 1. CORS: Who can fetch data? (Frontend Vercel URL)
-CORS_ALLOWED_ORIGINS = config(
+# 1. CORS: Who can fetch data? (Frontend Vercel URL + Localhost)
+CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000,https://ches-funtua-frontend.vercel.app'
+    'http://localhost:3000,http://127.0.0.1:3000,https://ches-funtua-frontend.vercel.app'
 ).split(',')
 
-# 2. CSRF: Who can send POST requests? (Frontend Vercel URL)
-CSRF_TRUSTED_ORIGINS = config(
+# 2. CSRF: Who can send POST requests? (Frontend Vercel URL + Localhost)
+CSRF_TRUSTED_ORIGINS = os.environ.get(
     'CSRF_TRUSTED_ORIGINS',
-    default='http://localhost:3000,https://ches-funtua-frontend.vercel.app'
+    'http://localhost:3000,https://ches-funtua-frontend.vercel.app'
 ).split(',')
 
 
-# For development only
+# For development only - helps if you are testing locally with random ports
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 
 
 # Paystack Configuration
-# Wrapping in config() allows you to override these in .env on PythonAnywhere without code changes
-PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default="sk_test_e965d34d77cf450271fb33124c98dfe7b82076e9")
-PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default="pk_test_9ff457e4cdd9aae7f23fe2b4080e370af50b4a1c")
+# Uses Test Keys by default if not found in environment
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', "sk_test_e965d34d77cf450271fb33124c98dfe7b82076e9")
+PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', "pk_test_9ff457e4cdd9aae7f23fe2b4080e370af50b4a1c")
 
 # Frontend URL for Callbacks
-FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
