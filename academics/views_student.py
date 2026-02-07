@@ -10,7 +10,8 @@ from django.db.models import Sum
 # ✅ Updated Imports
 from .models import (
     Semester, CourseOffering, CourseRegistration, 
-    Grade, StudentAcademicRecord, AcademicLevelConfiguration
+    Grade, StudentAcademicRecord, AcademicLevelConfiguration,
+    Course
 )
 from users.models import Student
 from finance.models import Invoice
@@ -238,6 +239,40 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             'course__department',
             'lecturer__user'
         )
+
+        # ✅ Auto-generate offerings if none exist for this level/department
+        if not available_offerings.exists():
+            # Find matching courses from the department
+            courses = Course.objects.filter(
+                department=student.department,
+                level=student.level,
+                semester=current_semester.semester # 'first' or 'second'
+            )
+            
+            for course in courses:
+                # Create or get offering
+                CourseOffering.objects.get_or_create(
+                    course=course,
+                    semester=current_semester,
+                    defaults={
+                        'capacity': 200, # Default reasonable capacity
+                        'is_active': True
+                    }
+                )
+            
+            # Re-fetch offerings after generation
+            available_offerings = CourseOffering.objects.filter(
+                semester=current_semester,
+                is_active=True,
+                course__level=student.level,
+                course__department=student.department
+            ).exclude(
+                id__in=current_registrations
+            ).select_related(
+                'course',
+                'course__department',
+                'lecturer__user'
+            )
         
         # Filter by capacity
         available_offerings = [
