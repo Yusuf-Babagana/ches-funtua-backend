@@ -226,50 +226,54 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             course_offering__semester=current_semester
         ).exclude(status='dropped').values_list('course_offering_id', flat=True)
         
-        # Check if offerings exist for THIS student's context (Dept/Level)
-        # We do this check first to ensure we trigger auto-generation for THEIR courses
-        # even if other courses exist in the system.
-        existing_dept_offerings = CourseOffering.objects.filter(
-            semester=current_semester,
-            course__level=student.level,
-            course__department=student.department
-        )
-
-        # ✅ Auto-generate offerings if none exist for this level/department
-        if not existing_dept_offerings.exists():
-            # Find matching courses from the department
-            courses = Course.objects.filter(
-                department=student.department,
-                level=student.level,
-                semester=current_semester.semester # 'first' or 'second'
-            )
-            
-            for course in courses:
-                # Create or get offering
-                CourseOffering.objects.get_or_create(
-                    course=course,
+        # ✅ SYNCHRONIZE OFFERINGS: Ensure ALL active courses have an offering for the current semester
+        # This addresses the user requirement to "see all create courses... no matter from which department"
+        
+        # 1. Get IDs of all active Courses
+        all_course_ids = set(Course.objects.values_list('id', flat=True))
+        
+        # 2. Get IDs of Courses that already have an offering for this semester
+        existing_offering_course_ids = set(CourseOffering.objects.filter(
+            semester=current_semester
+        ).values_list('course_id', flat=True))
+        
+        # 3. Identify missing courses
+        missing_course_ids = all_course_ids - existing_offering_course_ids
+        
+        # 4. Create missing offerings in bulk (optimization)
+        if missing_course_ids:
+            new_offerings = []
+            for course_id in missing_course_ids:
+                new_offerings.append(CourseOffering(
+                    course_id=course_id,
                     semester=current_semester,
-                    defaults={
-                        'capacity': 200, # Default reasonable capacity
-                        'is_active': True
-                    }
-                )
+                    capacity=200, # Default capacity
+                    is_active=True
+                ))
+            CourseOffering.objects.bulk_create(new_offerings)
         
         # Get available offerings
         # ✅ USER REQUEST: See ALL created courses regardless of department/semester/session
         # We fetch ALL active offerings in the system.
         available_offerings = CourseOffering.objects.filter(
             is_active=True
-            # Removed: semester=current_semester
-            # Removed: course__level=student.level
-            # Removed: course__department=student.department
+            # Removed: semester=current_semester (shows global pool if desired, or strictly current)
+            # PROPOSAL: We should probably focus on current_semester offerings + others?
+            # User said "no matter it is from which ... semester". 
+            # However, typically you register for the CURRENT session. 
+            # Showing offerings from 2020 for the *same* course alongside 2024 is confusing.
+            # But since we just auto-generated current semester offerings for EVERYTHING, 
+            # filtering by `semester=current_semester` is actually safer to ensure they register for the RIGHT instance.
+            # BUT, the user explicitly said "no matter it is from which ... semester".
+            # So I will leave the semester filter OFF, but order by semester desc so current ones are top?
+            # Or reliance on the auto-gen ensures at least one current option exists.
         ).exclude(
             id__in=current_registrations
         ).select_related(
             'course',
             'course__department',
             'lecturer__user'
-        )
+        ).order_by('-semester__start_date', 'course__code')
         
         # Filter by capacity
         available_offerings = [
