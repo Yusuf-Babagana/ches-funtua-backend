@@ -226,22 +226,17 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             course_offering__semester=current_semester
         ).exclude(status='dropped').values_list('course_offering_id', flat=True)
         
-        # Get available offerings
-        available_offerings = CourseOffering.objects.filter(
-            semester=current_semester, # ✅ Matches the student's level semester
-            is_active=True,
-            course__level=student.level, # ✅ Matches student's level
+        # Check if offerings exist for THIS student's context (Dept/Level)
+        # We do this check first to ensure we trigger auto-generation for THEIR courses
+        # even if other courses exist in the system.
+        existing_dept_offerings = CourseOffering.objects.filter(
+            semester=current_semester,
+            course__level=student.level,
             course__department=student.department
-        ).exclude(
-            id__in=current_registrations
-        ).select_related(
-            'course',
-            'course__department',
-            'lecturer__user'
         )
 
         # ✅ Auto-generate offerings if none exist for this level/department
-        if not available_offerings.exists():
+        if not existing_dept_offerings.exists():
             # Find matching courses from the department
             courses = Course.objects.filter(
                 department=student.department,
@@ -259,20 +254,22 @@ class StudentDashboardViewSet(viewsets.ViewSet):
                         'is_active': True
                     }
                 )
-            
-            # Re-fetch offerings after generation
-            available_offerings = CourseOffering.objects.filter(
-                semester=current_semester,
-                is_active=True,
-                course__level=student.level,
-                course__department=student.department
-            ).exclude(
-                id__in=current_registrations
-            ).select_related(
-                'course',
-                'course__department',
-                'lecturer__user'
-            )
+        
+        # Get available offerings
+        # ✅ USER REQUEST: See ALL created courses regardless of department/semester/session
+        # We fetch ALL active offerings in the system.
+        available_offerings = CourseOffering.objects.filter(
+            is_active=True
+            # Removed: semester=current_semester
+            # Removed: course__level=student.level
+            # Removed: course__department=student.department
+        ).exclude(
+            id__in=current_registrations
+        ).select_related(
+            'course',
+            'course__department',
+            'lecturer__user'
+        )
         
         # Filter by capacity
         available_offerings = [
