@@ -222,9 +222,7 @@ class HODDashboardViewSet(viewsets.ViewSet):
         if error_response:
             return error_response
         
-        lecturers = Lecturer.objects.filter(
-            department=department
-        ).select_related('user').order_by('staff_id')
+        lecturers = Lecturer.objects.all().select_related('user').order_by('staff_id')
         
         # Apply filters
         designation = request.query_params.get('designation')
@@ -245,7 +243,6 @@ class HODDashboardViewSet(viewsets.ViewSet):
         for lecturer in lecturers:
             # Count courses currently assigned to this lecturer
             course_count = Course.objects.filter(
-                department=department,
                 lecturer=lecturer
             ).count()
             
@@ -284,9 +281,7 @@ class HODDashboardViewSet(viewsets.ViewSet):
         if error_response:
             return error_response
         
-        courses = Course.objects.filter(
-            department=department
-        ).select_related('lecturer__user', 'department').order_by('code')
+        courses = Course.objects.all().select_related('lecturer__user', 'department').order_by('code')
         
         # Apply filters
         level = request.query_params.get('level')
@@ -350,10 +345,10 @@ class HODDashboardViewSet(viewsets.ViewSet):
             return error_response
         
         try:
-            course = Course.objects.get(id=pk, department=department)
+            course = Course.objects.get(id=pk)
         except Course.DoesNotExist:
             return Response(
-                {'error': 'Course not found in your department'},
+                {'error': 'Course not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
         
@@ -365,7 +360,7 @@ class HODDashboardViewSet(viewsets.ViewSet):
             )
         
         try:
-            lecturer = Lecturer.objects.get(id=lecturer_id, department=department)
+            lecturer = Lecturer.objects.get(id=lecturer_id)
             
             # Check if lecturer is already assigned to this course
             if course.lecturer == lecturer:
@@ -397,7 +392,7 @@ class HODDashboardViewSet(viewsets.ViewSet):
             
         except Lecturer.DoesNotExist:
             return Response(
-                {'error': 'Lecturer not found in your department'},
+                {'error': 'Lecturer not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
     
@@ -409,10 +404,10 @@ class HODDashboardViewSet(viewsets.ViewSet):
             return error_response
         
         try:
-            course = Course.objects.get(id=pk, department=department)
+            course = Course.objects.get(id=pk)
         except Course.DoesNotExist:
             return Response(
-                {'error': 'Course not found in your department'},
+                {'error': 'Course not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
         
@@ -443,16 +438,13 @@ class HODDashboardViewSet(viewsets.ViewSet):
         if error_response:
             return error_response
         
-        # Get all lecturers in the department
-        lecturers = Lecturer.objects.filter(
-            department=department
-        ).select_related('user').order_by('user__last_name')
+        # Get all lecturers
+        lecturers = Lecturer.objects.all().select_related('user').order_by('user__last_name')
         
         lecturer_data = []
         for lecturer in lecturers:
             # Count courses currently assigned to this lecturer
             course_count = Course.objects.filter(
-                department=department,
                 lecturer=lecturer
             ).count()
             
@@ -549,8 +541,8 @@ class HODDashboardViewSet(viewsets.ViewSet):
                 continue
             
             try:
-                course = Course.objects.get(id=course_id, department=department)
-                lecturer = Lecturer.objects.get(id=lecturer_id, department=department)
+                course = Course.objects.get(id=course_id)
+                lecturer = Lecturer.objects.get(id=lecturer_id)
                 
                 course.lecturer = lecturer
                 course.save()
@@ -564,12 +556,12 @@ class HODDashboardViewSet(viewsets.ViewSet):
             except Course.DoesNotExist:
                 failed.append({
                     'assignment': assignment,
-                    'error': f'Course {course_id} not found in your department'
+                    'error': f'Course {course_id} not found'
                 })
             except Lecturer.DoesNotExist:
                 failed.append({
                     'assignment': assignment,
-                    'error': f'Lecturer {lecturer_id} not found in your department'
+                    'error': f'Lecturer {lecturer_id} not found'
                 })
             except Exception as e:
                 failed.append({
