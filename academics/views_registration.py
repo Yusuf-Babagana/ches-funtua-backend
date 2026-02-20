@@ -43,43 +43,36 @@ class CourseOfferingViewSet(viewsets.ReadOnlyModelViewSet):
         ).values_list('course_offering_id', flat=True)
 
         # 2. Get Offerings (excluding registered ones)
+        # ✅ REMOVED: Department and Level restrictions
         available_offerings = CourseOffering.objects.filter(
             semester=current_semester,
-            course__level=student.level,
-            course__department=student.department,
             is_active=True
         ).exclude(
             id__in=registered_offering_ids
-        ).select_related('course', 'lecturer__user')
+        ).select_related('course', 'course__department', 'lecturer__user')
 
-        # 3. Fallback: If courses exist but no offerings, create them
-        if not available_offerings.exists():
-            raw_courses = Course.objects.filter(
-                level=student.level, 
-                department=student.department
-            )
-            created_new = False
-            for course in raw_courses:
-                # Check if offering exists (even if registered)
-                if not CourseOffering.objects.filter(course=course, semester=current_semester).exists():
-                    CourseOffering.objects.create(
-                        course=course,
-                        semester=current_semester,
-                        capacity=1000,
-                        is_active=True
-                    )
-                    created_new = True
-            
-            if created_new:
-                # Re-query
-                available_offerings = CourseOffering.objects.filter(
-                    semester=current_semester,
-                    course__level=student.level,
-                    course__department=student.department,
-                    is_active=True
-                ).exclude(
-                    id__in=registered_offering_ids
-                ).select_related('course', 'lecturer__user')
+        # 3. ENSURE ALL COURSES HAVE OFFERINGS for current semester
+        all_course_ids = set(Course.objects.values_list('id', flat=True))
+        existing_offering_course_ids = set(CourseOffering.objects.filter(
+            semester=current_semester
+        ).values_list('course_id', flat=True))
+        
+        missing_course_ids = all_course_ids - existing_offering_course_ids
+        
+        if missing_course_ids:
+            new_offerings = [
+                CourseOffering(course_id=cid, semester=current_semester, capacity=1000, is_active=True)
+                for cid in missing_course_ids
+            ]
+            CourseOffering.objects.bulk_create(new_offerings)
+
+        # 4. Final Query: Offerings (excluding registered ones)
+        available_offerings = CourseOffering.objects.filter(
+            semester=current_semester,
+            is_active=True
+        ).exclude(
+            id__in=registered_offering_ids
+        ).select_related('course', 'course__department', 'lecturer__user')
 
         results = []
         for offering in available_offerings:
