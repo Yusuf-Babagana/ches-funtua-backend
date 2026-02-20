@@ -160,18 +160,19 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         
         current_semester = Semester.objects.filter(is_current=True).first()
         
-        # --- STRICT PAYMENT CHECK ---
-        invoice = Invoice.objects.filter(
+        # --- RELAXED PAYMENT CHECK (Session-based) ---
+        # Look for ANY paid invoice for this student in the current session
+        has_paid = Invoice.objects.filter(
             student=student,
             session=current_semester.session,
-            semester=current_semester.semester
-        ).first()
+            status='paid'
+        ).exists()
         
-        if not invoice or invoice.status != 'paid':
+        if not has_paid:
              return Response(
                 {'error': 'Tuition fees must be paid before registration.'},
                 status=status.HTTP_400_BAD_REQUEST
-            )
+             )
 
         # Ensure ids are unique integers
         offering_ids = list(set([int(x) for x in offering_ids]))
