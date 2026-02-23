@@ -17,7 +17,7 @@ from .serializers import (
     UserSerializer, UserCreateSerializer, StudentSerializer, StudentCreateSerializer,
     LecturerSerializer, LecturerCreateSerializer, StaffProfileSerializer, 
     StaffProfileCreateSerializer, LoginSerializer, UserUpdateSerializer, UserPasswordResetSerializer,
-    StaffRegistrationSerializer, HODCreateSerializer
+    StaffRegistrationSerializer, HODCreateSerializer, ChangePasswordSerializer
 )
 from .permissions import IsAdminStaff, IsSuperAdmin, CanManageUsers
 
@@ -247,6 +247,49 @@ class AuthViewSet(viewsets.GenericViewSet):
                 {'error': 'Registration failed. Please try again.'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=False, methods=['get', 'post'], url_path='register/lecturer')
+    def register_lecturer(self, request):
+        """Lecturer registration with user data"""
+        if request.method == 'GET':
+            from academics.models import Department
+            departments = Department.objects.all()
+            departments_data = [{'id': d.id, 'name': d.name, 'code': d.code} for d in departments]
+            return Response({
+                'message': 'Lecturer Registration',
+                'departments': departments_data,
+                'schema': {
+                    'required_fields': {
+                        'user_data': {
+                            'email': 'string', 'username': 'string', 
+                            'first_name': 'string', 'last_name': 'string',
+                            'password': 'string', 'password_confirm': 'string'
+                        },
+                        'staff_id': 'string',
+                        'department': 'integer (Department ID)'
+                    },
+                    'optional_fields': {
+                        'designation': 'string',
+                        'specialization': 'string',
+                        'qualifications': 'string',
+                        'office_location': 'string',
+                        'consultation_hours': 'string'
+                    }
+                }
+            })
+        
+        serializer = LecturerCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        lecturer = serializer.save()
+        refresh = RefreshToken.for_user(lecturer.user)
+        
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(lecturer.user).data,
+            'profile': LecturerSerializer(lecturer).data,
+            'message': 'Lecturer account created successfully'
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get', 'post'])
     def register_student(self, request):
