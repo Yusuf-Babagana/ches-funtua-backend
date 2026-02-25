@@ -98,7 +98,10 @@ class StudentFinanceViewSet(viewsets.ViewSet):
             return Response(InvoiceSerializer(new_invoice).data)
 
         except Exception as e:
-            return Response({'error': 'Could not generate invoice'}, status=500)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in current_invoice for student {student.id}: {str(e)}", exc_info=True)
+            return Response({'error': f'Could not generate invoice: {str(e)}'}, status=500)
 
 
 class PaystackPaymentViewSet(viewsets.ViewSet):
@@ -147,12 +150,13 @@ class PaystackPaymentViewSet(viewsets.ViewSet):
         
         return Response({'error': result.get('error', 'Initialization failed')}, status=400)
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=['get', 'post'])
     def verify(self, request):
         """
         Verify payment after callback from frontend
         """
-        reference = request.data.get('reference')
+        # Extract reference from POST data or GET query params
+        reference = request.data.get('reference') or request.query_params.get('reference')
         if not reference:
             return Response({'error': 'Reference is required'}, status=400)
 

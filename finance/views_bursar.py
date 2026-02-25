@@ -120,11 +120,7 @@ class PaymentVerificationViewSet(viewsets.ViewSet):
             
             if payment.invoice:
                 payment.invoice.amount_paid += payment.amount
-                if payment.invoice.amount_paid >= payment.invoice.amount:
-                    payment.invoice.status = 'paid'
-                elif payment.invoice.amount_paid > 0:
-                    payment.invoice.status = 'partially_paid'
-                payment.invoice.save()
+                payment.invoice.save() # Built-in save() handles status calculation
                 
             return Response({'message': 'Payment verified successfully'})
             
@@ -242,9 +238,8 @@ class InvoiceManagementViewSet(viewsets.ViewSet):
         """Manually mark an invoice as paid (Bursar override)"""
         try:
             invoice = Invoice.objects.get(id=pk)
-            invoice.status = 'paid'
-            invoice.amount_paid = invoice.amount # Assume full payment or override
-            invoice.save()
+            invoice.amount_paid = invoice.amount
+            invoice.save() # status will be auto-calculated to 'paid'
             return Response({'message': f'Invoice {invoice.invoice_number} marked as PAID.'})
         except Invoice.DoesNotExist:
             return Response({'error': 'Invoice not found'}, status=404)

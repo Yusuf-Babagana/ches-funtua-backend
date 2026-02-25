@@ -109,7 +109,7 @@ class Invoice(models.Model):
             self.status = 'partially_paid'
         else:
             self.status = 'pending'
-        self.save(update_fields=['status'])
+        self.save(update_fields=['status', 'amount_paid', 'updated_at'])
     
     def is_tuition_paid(self):
         """Check if tuition fee is fully paid"""
@@ -173,13 +173,6 @@ class Payment(models.Model):
             self.amount = self.invoice.balance
             
         super().save(*args, **kwargs)
-        
-        # Update invoice if linked and payment completed
-        if self.invoice and self.status == 'completed':
-            if self.invoice.amount_paid is None:
-                self.invoice.amount_paid = 0
-            self.invoice.amount_paid += self.amount
-            self.invoice.update_status()
 
 
 class PaystackTransaction(models.Model):
