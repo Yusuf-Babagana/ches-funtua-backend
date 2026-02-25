@@ -101,7 +101,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             status__in=['pending', 'approved_lecturer']
         )
         
-        # --- FEE PAYMENT CHECK (STRICT) ---
+        # --- FEE PAYMENT CHECK (ALLOWS 2 COURSES IF UNPAID) ---
         has_paid_fees = False
         # Check for invoice matching this specific semester/session
         invoice = Invoice.objects.filter(
@@ -112,16 +112,21 @@ class StudentDashboardViewSet(viewsets.ViewSet):
         
         if invoice and invoice.status == 'paid':
             has_paid_fees = True
+
+        # Count total registrations (active + pending)
+        current_reg_count = registrations.count() + pending_registrations.count()
         
         # --- DEADLINE CHECK ---
-        # Use the semester's deadline
         registration_deadline = current_semester.registration_deadline
         
+        # ELIGIBILITY LOGIC:
+        # 1. Paid students: Can register up to 15 courses
+        # 2. Unpaid students: Can register up to 2 courses
+        can_register_by_limit = (current_reg_count < 15) if has_paid_fees else (current_reg_count < 2)
+
         can_register = (
-            has_paid_fees and 
-            is_reg_open_for_level and 
-            # Check course limit (e.g. 12 for testing)
-            (registrations.count() + pending_registrations.count()) < 15
+            can_register_by_limit and 
+            is_reg_open_for_level
         )
         
         return Response({
@@ -130,7 +135,7 @@ class StudentDashboardViewSet(viewsets.ViewSet):
                 'id': current_semester.id,
                 'session': current_semester.session,
                 'semester': current_semester.semester,
-                'is_registration_active': is_reg_open_for_level, # ✅ Specific to level
+                'is_registration_active': is_reg_open_for_level,
                 'registration_deadline': registration_deadline,
                 'start_date': current_semester.start_date,
                 'end_date': current_semester.end_date,
@@ -138,11 +143,11 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             'registration_status': {
                 'has_paid_fees': has_paid_fees,
                 'can_register': can_register,
-                'registered_courses': registrations.count(),
-                'max_courses': 15, 
+                'registered_courses': current_reg_count,
+                'max_courses': 15 if has_paid_fees else 2, 
                 'total_credits': sum(
-                    r.course_offering.course.credits for r in registrations
-                ) if registrations.exists() else 0
+                    r.course_offering.course.credits for r in (registrations | pending_registrations)
+                ) if (registrations | pending_registrations).exists() else 0
             }
         })
     

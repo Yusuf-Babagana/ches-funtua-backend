@@ -66,12 +66,8 @@ class RegistrationViewSet(viewsets.ViewSet):
             is_registration_active = False
             reason = "Registration period has closed."
 
-        # 3. Check Fee Status (Finance)
-        # Find the invoice for this specific session/semester
-        # We consider 'paid' or 'partially_paid' (depending on your school policy)
-        # STRICT MODE: Must be 'paid'
+        # 3. Check Fee Status and Existing Registrations
         has_paid_fees = False
-        
         invoice = Invoice.objects.filter(
             student=student, 
             session=current_semester.session,
@@ -80,22 +76,28 @@ class RegistrationViewSet(viewsets.ViewSet):
 
         if invoice and invoice.status == 'paid':
             has_paid_fees = True
-        
-        # If no invoice exists, they obviously haven't paid
-        if not invoice:
-            has_paid_fees = False
+
+        # Count existing registrations
+        reg_count = CourseRegistration.objects.filter(
+            student=student,
+            course_offering__semester=current_semester
+        ).exclude(status='dropped').count()
 
         # 4. Final Decision
-        can_register = is_registration_active and has_paid_fees
+        # Allow if paid OR if they have registered less than 2 courses
+        can_register = is_registration_active and (has_paid_fees or reg_count < 2)
 
-        if not has_paid_fees:
-            reason = "Tuition fees not paid."
+        if not has_paid_fees and reg_count >= 2:
+            reason = "Tuition fees not paid. Limited to 2 courses."
         elif not is_registration_active:
             reason = "Registration closed."
+        else:
+            reason = "Eligible to register."
 
         return Response({
             'can_register': can_register,
             'has_paid_fees': has_paid_fees,
+            'reg_count': reg_count,
             'is_registration_active': is_registration_active,
             'registration_deadline': current_semester.registration_deadline,
             'current_semester': f"{current_semester.session} {current_semester.semester}",

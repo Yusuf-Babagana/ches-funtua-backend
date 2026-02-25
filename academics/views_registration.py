@@ -125,7 +125,7 @@ class RegistrationViewSet(viewsets.ModelViewSet):
             registered_count = regs.count()
             total_credits = sum(r.course_offering.course.credits for r in regs)
 
-        # --- FEE CHECK LOGIC ---
+        # --- FEE CHECK LOGIC (ALLOWS 2 COURSES IF UNPAID) ---
         has_paid_fees = False
         invoice = Invoice.objects.filter(
             student=student,
@@ -136,8 +136,10 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         if invoice and invoice.status == 'paid':
             has_paid_fees = True
 
+        can_register = has_paid_fees or (registered_count < 2)
+
         return Response({
-            'can_register': has_paid_fees, # Depends on fees
+            'can_register': can_register,
             'has_paid_fees': has_paid_fees,    
             'current_semester': {
                 'session': current_semester.session if current_semester else "N/A",
@@ -148,29 +150,34 @@ class RegistrationViewSet(viewsets.ModelViewSet):
             'registration_status': {
                 'registered_courses': registered_count,
                 'total_credits': total_credits,
-                'max_courses': 12
+                'max_courses': 15 if has_paid_fees else 2
             }
         })
 
     @action(detail=False, methods=['post'])
     def register_courses(self, request):
-        """Submit Registration (No Transaction Lock)."""
+        """Submit Registration."""
         student = request.user.student_profile
         offering_ids = request.data.get('course_offering_ids', [])
         
         current_semester = Semester.objects.filter(is_current=True).first()
         
-        # --- RELAXED PAYMENT CHECK (Session-based) ---
-        # Look for ANY paid invoice for this student in the current session
+        # Get existing registration count
+        existing_reg_count = CourseRegistration.objects.filter(
+            student=student,
+            course_offering__semester=current_semester
+        ).exclude(status='dropped').count()
+
+        # --- FEE CHECK (ALLOWS 2 COURSES IF UNPAID) ---
         has_paid = Invoice.objects.filter(
             student=student,
             session=current_semester.session,
             status='paid'
         ).exists()
         
-        if not has_paid:
+        if not has_paid and (existing_reg_count + len(offering_ids) > 2):
              return Response(
-                {'error': 'Tuition fees must be paid before registration.'},
+                {'error': 'Tuition fees must be paid before registering more than 2 courses.'},
                 status=status.HTTP_400_BAD_REQUEST
              )
 
