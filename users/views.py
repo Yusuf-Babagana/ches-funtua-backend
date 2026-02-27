@@ -692,6 +692,19 @@ class UserViewSet(viewsets.ModelViewSet):
         logger.info(f"✅ User deleted: {instance.email} by {self.request.user.email}")
         instance.delete()
 
+    @action(detail=False, methods=['post'], url_path='change-password')
+    def change_password(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            if not user.check_password(serializer.validated_data['old_password']):
+                return Response({"old_password": ["Wrong password."]}, status=status.HTTP_400_BAD_REQUEST)
+            
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+            return Response({"message": "Password updated successfully"}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class StudentViewSet(viewsets.ModelViewSet):
     """Student profile operations"""
