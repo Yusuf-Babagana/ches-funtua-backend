@@ -2,6 +2,7 @@ from django.db import models
 from users.models import User, Student  # Added Student import
 from academics.models import Semester
 import uuid
+from django.db.models.expressions import CombinedExpression
 
 class FeeStructure(models.Model):
     """Fee structure for different levels and departments"""
@@ -90,13 +91,16 @@ class Invoice(models.Model):
         return amount - paid
 
     def save(self, *args, **kwargs):
-        # Auto-update status based on balance
-        if self.balance <= 0:
-            self.status = 'paid'
-        elif self.amount_paid > 0:
-            self.status = 'partially_paid'
-        else:
-            self.status = 'pending'
+        # ✅ FIX: Skip auto-status update if F() expressions are used
+        # Python cannot compare F() expressions to integers
+        if not isinstance(self.amount_paid, (CombinedExpression)) and \
+           not isinstance(self.amount, (CombinedExpression)):
+            if self.balance <= 0:
+                self.status = 'paid'
+            elif self.amount_paid > 0:
+                self.status = 'partially_paid'
+            else:
+                self.status = 'pending'
         super().save(*args, **kwargs)
 
     def update_status(self):
