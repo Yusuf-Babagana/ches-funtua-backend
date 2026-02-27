@@ -5,7 +5,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import F
-from .models import Payment, PaystackTransaction, PaymentReceipt
+from .models import Payment, PaystackTransaction, PaymentReceipt, Invoice
 
 # Setup logging to see errors in your terminal
 logger = logging.getLogger(__name__)
