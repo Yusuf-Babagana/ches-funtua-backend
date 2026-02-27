@@ -141,13 +141,21 @@ class StudentSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
-    department_name = serializers.CharField(source='department.name', read_only=True)
+    # Expose the string representation (name) by default
+    department = serializers.StringRelatedField()
+    # Provide the raw primary key for write operations or specific frontend references
+    department_id = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(),
+        source='department',
+        write_only=True,
+        required=False
+    )
     
     class Meta:
         model = Student
         fields = [
             'id', 'user', 'user_id', 'matric_number', 'level', 
-            'department', 'department_name', 'status', 'admission_date',
+            'department', 'department_id', 'status', 'admission_date',
             'date_of_birth', 'address', 'guardian_name', 'guardian_phone',
             'created_at', 'updated_at'
         ]
