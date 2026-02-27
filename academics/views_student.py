@@ -479,14 +479,20 @@ class StudentRegistrationStatusAPIView(APIView):
                 'message': 'No current semester set'
             })
         
-        # Count existing
+        # Count existing registrations
         registrations = CourseRegistration.objects.filter(
             student=student,
             course_offering__semester=current_semester,
             status='registered'
         )
+
+        pending_registrations = CourseRegistration.objects.filter(
+            student=student,
+            course_offering__semester=current_semester,
+            status__in=['pending', 'approved_lecturer']
+        )
         
-        # --- FEE CHECK LOGIC ---
+        # --- FEE CHECK LOGIC (ALLOWS 2 COURSES IF UNPAID) ---
         has_paid_fees = False
         invoice = Invoice.objects.filter(
             student=student,
@@ -497,9 +503,12 @@ class StudentRegistrationStatusAPIView(APIView):
         if invoice and invoice.status == 'paid':
             has_paid_fees = True
 
+        current_reg_count = registrations.count() + pending_registrations.count()
         registration_deadline = current_semester.registration_deadline
         
-        can_register = has_paid_fees and is_reg_open
+        # ELIGIBILITY LOGIC
+        can_register_by_limit = (current_reg_count < 15) if has_paid_fees else (current_reg_count < 2)
+        can_register = can_register_by_limit and is_reg_open
         
         return Response({
             'has_current_semester': True,
@@ -515,10 +524,10 @@ class StudentRegistrationStatusAPIView(APIView):
             'registration_status': {
                 'has_paid_fees': has_paid_fees,
                 'can_register': can_register,
-                'registered_courses': registrations.count(),
-                'max_courses': 12,
+                'registered_courses': current_reg_count,
+                'max_courses': 15 if has_paid_fees else 2,
                 'total_credits': sum(
-                    r.course_offering.course.credits for r in registrations
-                ) if registrations.exists() else 0
+                    r.course_offering.course.credits for r in (registrations | pending_registrations)
+                ) if (registrations | pending_registrations).exists() else 0
             }
         })

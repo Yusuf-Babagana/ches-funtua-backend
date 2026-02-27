@@ -3,6 +3,8 @@ import requests
 import uuid
 from django.conf import settings
 from django.utils import timezone
+from django.db import transaction
+from django.db.models import F
 from .models import Payment, PaystackTransaction, PaymentReceipt
 
 # Setup logging to see errors in your terminal
@@ -110,13 +112,11 @@ class FinanceService:
     def verify_paystack_transaction(reference):
         """
         Verifies a transaction with Paystack and updates the local Payment and Invoice.
+        Utilizes atomic transactions and row-level locking to prevent state desync.
         """
         secret_key = settings.PAYSTACK_SECRET_KEY
         base_url = "https://api.paystack.co"
-        
-        headers = {
-            "Authorization": f"Bearer {secret_key}",
-        }
+        headers = {"Authorization": f"Bearer {secret_key}"}
         
         try:
             response = requests.get(f"{base_url}/transaction/verify/{reference}", headers=headers)
@@ -124,47 +124,51 @@ class FinanceService:
             res_data = response.json()
             
             if res_data['status'] and res_data['data']['status'] == 'success':
-                # Find payment
-                try:
-                    payment = Payment.objects.get(paystack_reference=reference)
-                except Payment.DoesNotExist:
-                    # Try finding by fallback if local ref was used
-                    return {'success': False, 'error': 'Payment record not found locally'}
-                
-                if payment.status == 'completed':
-                    return {'success': True, 'message': 'Payment already verified'}
+                # Use atomic block to ensure all-or-nothing persistence
+                with transaction.atomic():
+                    # 1. Lock the payment record and check status
+                    try:
+                        payment = Payment.objects.select_for_update().get(paystack_reference=reference)
+                    except Payment.DoesNotExist:
+                        return {'success': False, 'error': 'Payment record not found locally'}
+                    
+                    if payment.status == 'completed':
+                        return {'success': True, 'message': 'Payment already verified'}
 
-                # Update Payment
-                payment.status = 'completed'
-                payment.payment_date = timezone.now()
-                # Store gateway response ID safely
-                payment.transaction_reference = str(res_data['data']['id']) 
-                payment.save()
-                
-                # Log Paystack Transaction details
-                PaystackTransaction.objects.create(
-                    payment=payment,
-                    paystack_reference=reference,
-                    amount=res_data['data']['amount'] / 100,
-                    currency=res_data['data']['currency'],
-                    channel=res_data['data']['channel'],
-                    ip_address=res_data['data']['ip_address'],
-                    paid_at=res_data['data']['paid_at'],
-                    paystack_data=res_data['data']
-                )
+                    # 2. Update Payment State
+                    payment.status = 'completed'
+                    payment.payment_date = timezone.now()
+                    payment.transaction_reference = str(res_data['data']['id']) 
+                    payment.save()
+                    
+                    # 3. Log Paystack Transaction
+                    PaystackTransaction.objects.create(
+                        payment=payment,
+                        paystack_reference=reference,
+                        amount=res_data['data']['amount'] / 100,
+                        currency=res_data['data']['currency'],
+                        channel=res_data['data']['channel'],
+                        ip_address=res_data['data']['ip_address'],
+                        paid_at=res_data['data']['paid_at'],
+                        paystack_data=res_data['data']
+                    )
 
-                # Update Invoice
-                invoice = payment.invoice
-                if invoice:
-                    # Ensure amount_paid is a decimal/float
-                    current_paid = float(invoice.amount_paid or 0)
-                    new_payment = float(payment.amount)
-                    invoice.amount_paid = current_paid + new_payment
-                    invoice.update_status() 
-                
-                # Generate Receipt
-                FinanceService.generate_receipt(payment)
-                
+                    # 4. Atomic Increment of Invoice using F() expressions
+                    if payment.invoice:
+                        # Lock the invoice to prevent concurrent balance updates
+                        invoice = Invoice.objects.select_for_update().get(id=payment.invoice.id)
+                        
+                        # Avoid manual float math; let the DB handle the addition
+                        invoice.amount_paid = F('amount_paid') + payment.amount
+                        invoice.save(update_fields=['amount_paid', 'updated_at'])
+                        
+                        # Refresh from DB to get the new amount_paid value for status logic
+                        invoice.refresh_from_db()
+                        invoice.update_status() 
+                    
+                    # 5. Generate Receipt
+                    FinanceService.generate_receipt(payment)
+                    
                 return {'success': True, 'message': 'Payment verified successfully'}
                 
             else:
