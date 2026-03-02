@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView 
-from django.db.models import Sum
+from django.db.models import Sum, F
 from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
@@ -105,33 +105,41 @@ class PaymentVerificationViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=['post'])
     def verify_payment(self, request, pk=None):
-        try:
-            payment = Payment.objects.get(id=pk, status='pending')
-        except Payment.DoesNotExist:
-            return Response({'error': 'Payment not found'}, status=status.HTTP_404_NOT_FOUND)
-            
-        action = request.data.get('action')
-        
-        if action == 'verify':
-            payment.status = 'completed'
-            payment.verified_by = request.user
-            payment.payment_date = timezone.now()
-            payment.save()
-            
-            if payment.invoice:
-                payment.invoice.amount_paid += payment.amount
-                payment.invoice.save() # Built-in save() handles status calculation
+        with transaction.atomic():
+            try:
+                # Lock the payment record to prevent race conditions
+                payment = Payment.objects.select_for_update().get(id=pk, status='pending')
+            except Payment.DoesNotExist:
+                return Response({'error': 'Payment not found or already processed'}, status=status.HTTP_404_NOT_FOUND)
                 
-            return Response({'message': 'Payment verified successfully'})
+            action_type = request.data.get('action')
             
-        elif action == 'reject':
-            payment.status = 'failed'
-            payment.verified_by = request.user
-            payment.remarks = request.data.get('remarks', 'Rejected by bursar')
-            payment.save()
-            return Response({'message': 'Payment rejected'})
-            
-        return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+            if action_type == 'verify':
+                payment.status = 'completed'
+                payment.verified_by = request.user
+                payment.payment_date = timezone.now()
+                payment.save()
+                
+                if payment.invoice:
+                    # Lock the invoice to prevent race conditions during manual verification
+                    invoice = Invoice.objects.select_for_update().get(id=payment.invoice.id)
+                    invoice.amount_paid = F('amount_paid') + payment.amount
+                    invoice.save(update_fields=['amount_paid', 'updated_at'])
+                    
+                    # Refresh to trigger the status calculation logic we hardened earlier
+                    invoice.refresh_from_db()
+                    invoice.update_status() 
+                    
+                return Response({'message': 'Payment verified successfully'})
+                
+            elif action_type == 'reject':
+                payment.status = 'failed'
+                payment.verified_by = request.user
+                payment.remarks = request.data.get('remarks', 'Rejected by bursar')
+                payment.save()
+                return Response({'message': 'Payment rejected'})
+                
+            return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class InvoiceManagementViewSet(viewsets.ViewSet):
@@ -187,15 +195,20 @@ class InvoiceManagementViewSet(viewsets.ViewSet):
             skipped_count = 0
 
             with transaction.atomic():
+                # We can't lock non-existent invoices, so we just wrap the creation
+                # strictly inside the atomic block. If two requests run, the first inserts
+                # and the second will see the existence inside its atomic context context.
                 for student in students:
-                    # Check for existing invoice to prevent duplicates for SAME session/semester
-                    exists = Invoice.objects.filter(
+                    # ✅ FIX: Re-check existence STRICTLY WITHIN the atomic block
+                    # This prevents race conditions where two simultaneous API calls both see
+                    # "exists=False" before the transaction begins.
+                    exists_inside = Invoice.objects.filter(
                         student=student,
                         session=session,
                         semester=semester,
                     ).exists()
 
-                    if exists:
+                    if exists_inside:
                         skipped_count += 1
                         continue
                     

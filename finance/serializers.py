@@ -25,7 +25,8 @@ class FeeStructureSerializer(serializers.ModelSerializer):
 class InvoiceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.user.get_full_name', read_only=True)
     matric_number = serializers.CharField(source='student.matric_number', read_only=True)
-    department_name = serializers.CharField(source='student.department.name', read_only=True)
+    # Use SerializerMethodField for safety to prevent AttributeError crashes
+    department_name = serializers.SerializerMethodField()
     level = serializers.CharField(source='student.level', read_only=True)
     
     # ✅ FIX: Handle case where Fee Structure is None
@@ -45,6 +46,12 @@ class InvoiceSerializer(serializers.ModelSerializer):
         if obj.fee_structure:
             return obj.fee_structure.name
         return "Standard Tuition"
+
+    def get_department_name(self, obj):
+        # Safely resolve department name if student and department exist
+        if obj.student and obj.student.department:
+            return obj.student.department.name
+        return "N/A"
 
 
         
