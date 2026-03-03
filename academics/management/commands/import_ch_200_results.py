@@ -10,7 +10,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Session configuration for the 4th Semester
         session = "2025/2026"
-        semester_type = "second"
+        semester_type = "first"
         
         # Results data extracted from "CHE 1 result.xlsx - 4TH SEM..csv"
         # Format: ("Full Name", {"CourseCode": Score})

@@ -33,6 +33,10 @@ from django.utils import timezone
 from .models import Semester, CourseRegistration
 from finance.models import Invoice
 
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
+from django.http import HttpResponse
+
 class RegistrationViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
@@ -353,6 +357,29 @@ class GradeViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(grades, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='download-result')
+    def download_result(self, request):
+        student = request.user.student_profile
+        grades = Grade.objects.filter(student=student, status='published').select_related('course')
+        
+        # Calculate GPA/CGPA for the PDF
+        context = {
+            'student': student,
+            'user': request.user,
+            'grades': grades,
+            'today': timezone.now(),
+            'college_name': "COLLEGE OF HEALTH AND ENVIRONMENTAL SCIENCES, FUNTUA"
+        }
+        
+        html = render_to_string('reports/result_sheet.html', context)
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{student.matric_number}_result.pdf"'
+        
+        pisa_status = pisa.CreatePDF(html, dest=response)
+        if pisa_status.err:
+            return HttpResponse('We had some errors <pre>' + html + '</pre>')
+        return response
 
 
 # ========================

@@ -257,6 +257,23 @@ class InvoiceManagementViewSet(viewsets.ViewSet):
         except Invoice.DoesNotExist:
             return Response({'error': 'Invoice not found'}, status=404)
 
+    @action(detail=True, methods=['patch'], url_path='set-installment')
+    def set_installment(self, request, pk=None):
+        """Bursar assigns a minimum installment amount to a specific student invoice"""
+        try:
+            invoice = Invoice.objects.get(id=pk)
+            amount = request.data.get('min_installment_amount')
+            
+            if amount is not None:
+                invoice.min_installment_amount = float(amount)
+                invoice.save()
+                return Response({
+                    'message': f'Installment of ₦{amount} set for {invoice.invoice_number}'
+                })
+            return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
+        except Invoice.DoesNotExist:
+            return Response({'error': 'Invoice not found'}, status=status.HTTP_404_NOT_FOUND)
+
 
 class ReceiptManagementViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsBursar]

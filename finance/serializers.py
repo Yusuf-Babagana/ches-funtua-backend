@@ -38,7 +38,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'id', 'invoice_number', 'student', 'student_name', 'matric_number',
             'department_name', 'level', 'fee_structure_name', 
             'session', 'semester', 'amount', 'amount_paid', 'balance', 'status', 
-            'due_date', 'description', 'created_at'
+            'due_date', 'description', 'allow_part_payment', 'created_at'
         ]
 
     def get_fee_structure_name(self, obj):
@@ -114,9 +114,11 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
 
 
 class PaystackInitializeSerializer(serializers.Serializer):
-    """Serializer for initializing Paystack payment"""
+    """Serializer for initializing Paystack payment with tiered options"""
     invoice_id = serializers.IntegerField()
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    # ✅ NEW: Differentiation for tiered payments
+    payment_type = serializers.ChoiceField(choices=['full', 'partial'], default='full')
     email = serializers.EmailField()
     callback_url = serializers.URLField(required=False)
     
@@ -125,9 +127,28 @@ class PaystackInitializeSerializer(serializers.Serializer):
             from .models import Invoice
             invoice = Invoice.objects.get(id=data['invoice_id'])
             
-            # Check if amount exceeds invoice balance
-            if data['amount'] > invoice.balance:
-                raise serializers.ValidationError("Amount exceeds invoice balance")
+            payment_type = data.get('payment_type', 'full')
+            amount = data['amount']
+            
+            # Part-payment eligibility check
+            if payment_type == 'partial' and not invoice.allow_part_payment:
+                raise serializers.ValidationError({"payment_type": "This invoice is not eligible for part-payment."})
+                
+            # Use F() expressions or current balance to validate amount
+            if amount > invoice.balance:
+                raise serializers.ValidationError({"amount": "Payment amount exceeds outstanding balance."})
+                
+            # Full payment validation
+            if payment_type == 'full' and amount < invoice.balance:
+                raise serializers.ValidationError({"amount": "Full payment must cover the exact invoice balance."})
+                
+            # If partial, check if Bursar has set a minimum (optional logic)
+            if payment_type == 'partial' and hasattr(invoice, 'min_installment_amount') and invoice.min_installment_amount is not None:
+                if amount < invoice.min_installment_amount:
+                     raise serializers.ValidationError({"amount": f"Minimum partial payment is ₦{invoice.min_installment_amount}"})
+
+            if amount <= 0:
+                raise serializers.ValidationError({"amount": "Payment amount must be greater than zero."})
             
             # Check if invoice belongs to the student
             # Note: Context 'request' is needed here, usually passed from view

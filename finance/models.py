@@ -73,6 +73,8 @@ class Invoice(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     due_date = models.DateField()
     description = models.TextField()
+    allow_part_payment = models.BooleanField(default=False, help_text="Is this invoice eligible for part-payment?")
+    min_installment_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Minimum partial payment amount if part payment is allowed")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
