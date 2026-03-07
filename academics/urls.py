@@ -50,6 +50,7 @@ from .views_result_workflow import (
     RegistrarResultWorkflowViewSet
 )
 from .views_transcript import TranscriptViewSet
+from .views_ict import ResultUploadView
 
 router = DefaultRouter()
 
@@ -116,6 +117,7 @@ urlpatterns = [
     path('semesters/current/', CurrentSemesterAPIView.as_view(), name='semesters-current'),
     path('registrar/profile/', RegistrarAPIView.as_view(), name='registrar-profile'),
     path('exam-officer/profile/', ExamOfficerAPIView.as_view(), name='exam-officer-profile'),
+    path('results/upload/', ResultUploadView.as_view(), name='ict-result-upload'),
     
     path('', include(router.urls)),
 ]
