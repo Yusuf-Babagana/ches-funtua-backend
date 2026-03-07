@@ -33,9 +33,10 @@ from django.utils import timezone
 from .models import Semester, CourseRegistration
 from finance.models import Invoice
 
-from django.template.loader import render_to_string
-from xhtml2pdf import pisa
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
 from django.http import HttpResponse
+from io import BytesIO
 
 class RegistrationViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -358,27 +359,54 @@ class GradeViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(grades, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='download-result')
-    def download_result(self, request):
+    @action(detail=False, methods=['get'], url_path='download-pdf')
+    def download_pdf(self, request):
         student = request.user.student_profile
         grades = Grade.objects.filter(student=student, status='published').select_related('course')
+
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        # Header
+        p.setFont("Helvetica-Bold", 16)
+        p.drawCentredString(width/2, height - 50, "COLLEGE OF HEALTH AND ENVIRONMENTAL SCIENCES, FUNTUA")
+        p.setFont("Helvetica", 12)
+        p.drawCentredString(width/2, height - 70, "Statement of Academic Results")
         
-        # Calculate GPA/CGPA for the PDF
-        context = {
-            'student': student,
-            'user': request.user,
-            'grades': grades,
-            'today': timezone.now(),
-            'college_name': "COLLEGE OF HEALTH AND ENVIRONMENTAL SCIENCES, FUNTUA"
-        }
+        # Student Info
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(50, height - 110, f"Name: {request.user.get_full_name()}")
+        p.drawString(50, height - 125, f"Matric No: {student.matric_number}")
+        p.drawString(350, height - 110, f"Dept: {student.department.name if student.department else 'N/A'}")
+
+        # Table Header
+        p.line(50, height - 140, 550, height - 140)
+        p.drawString(50, height - 155, "Course Code")
+        p.drawString(150, height - 155, "Course Title")
+        p.drawString(400, height - 155, "Score")
+        p.drawString(480, height - 155, "Grade")
+        p.line(50, height - 160, 550, height - 160)
+
+        # Grades List
+        y = height - 180
+        p.setFont("Helvetica", 10)
+        for g in grades:
+            p.drawString(50, y, g.course.code)
+            p.drawString(150, y, g.course.title[:40]) # Truncate long titles
+            p.drawString(400, y, str(g.score))
+            p.drawString(480, y, g.grade_letter)
+            y -= 20
+            if y < 50: # Simple page break logic
+                p.showPage()
+                y = height - 50
+
+        p.showPage()
+        p.save()
         
-        html = render_to_string('reports/result_sheet.html', context)
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{student.matric_number}_result.pdf"'
-        
-        pisa_status = pisa.CreatePDF(html, dest=response)
-        if pisa_status.err:
-            return HttpResponse('We had some errors <pre>' + html + '</pre>')
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Result_{student.matric_number}.pdf"'
         return response
 
 

@@ -32,14 +32,13 @@ class InvoiceSerializer(serializers.ModelSerializer):
     # ✅ FIX: Handle case where Fee Structure is None
     fee_structure_name = serializers.SerializerMethodField()
     
+    # Explicitly use DateField to stop the 'datetime' coercion error
+    date_issued = serializers.DateField(source='created_at', read_only=True)
+    due_date = serializers.DateField(read_only=True)
+    
     class Meta:
         model = Invoice
-        fields = [
-            'id', 'invoice_number', 'student', 'student_name', 'matric_number',
-            'department_name', 'level', 'fee_structure_name', 
-            'session', 'semester', 'amount', 'amount_paid', 'balance', 'status', 
-            'due_date', 'description', 'allow_part_payment', 'created_at'
-        ]
+        fields = '__all__'
 
     def get_fee_structure_name(self, obj):
         # Safely return name or a default string
