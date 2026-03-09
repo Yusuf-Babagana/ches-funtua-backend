@@ -91,7 +91,7 @@ class StudentFinanceViewSet(viewsets.ViewSet):
                 status='pending',
                 session=current_semester.session,
                 semester=current_semester.semester,
-                due_date=timezone.now() + timezone.timedelta(days=14),
+                due_date=(timezone.now() + timezone.timedelta(days=14)).date(),
                 description=f"Tuition Fee for {current_semester.session}"
             )
             

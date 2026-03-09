@@ -32,9 +32,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
     # ✅ FIX: Handle case where Fee Structure is None
     fee_structure_name = serializers.SerializerMethodField()
     
-    # Explicitly use DateField to stop the 'datetime' coercion error
-    date_issued = serializers.DateField(source='created_at', read_only=True)
-    due_date = serializers.DateField(read_only=True)
+    # Explicitly use SerializerMethodField to ensure date conversion and stop the 'datetime' coercion error
+    date_issued = serializers.SerializerMethodField()
+    due_date = serializers.SerializerMethodField()
     
     class Meta:
         model = Invoice
@@ -51,6 +51,18 @@ class InvoiceSerializer(serializers.ModelSerializer):
         if obj.student and obj.student.department:
             return obj.student.department.name
         return "N/A"
+
+    def get_date_issued(self, obj):
+        # Ensure created_at (datetime) is returned as a date
+        if obj.created_at:
+            return obj.created_at.date() if hasattr(obj.created_at, 'date') else obj.created_at
+        return None
+
+    def get_due_date(self, obj):
+        # Ensure due_date is returned as a date
+        if obj.due_date:
+            return obj.due_date.date() if hasattr(obj.due_date, 'date') else obj.due_date
+        return None
 
 
         
