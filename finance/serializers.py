@@ -23,46 +23,24 @@ class FeeStructureSerializer(serializers.ModelSerializer):
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
-    student_name = serializers.CharField(source='student.user.get_full_name', read_only=True)
-    matric_number = serializers.CharField(source='student.matric_number', read_only=True)
-    # Use SerializerMethodField for safety to prevent AttributeError crashes
-    department_name = serializers.SerializerMethodField()
-    level = serializers.CharField(source='student.level', read_only=True)
+    # ✅ Fix: Force conversion to simple date (YYYY-MM-DD)
+    date_issued = serializers.DateField(source='created_at', read_only=True)
+    due_date = serializers.DateField()
     
-    # ✅ FIX: Handle case where Fee Structure is None
-    fee_structure_name = serializers.SerializerMethodField()
-    
-    # Explicitly use SerializerMethodField to ensure date conversion and stop the 'datetime' coercion error
-    date_issued = serializers.SerializerMethodField()
-    due_date = serializers.SerializerMethodField()
-    
+    # ✅ New: Calculate how much the student has paid
+    amount_paid = serializers.SerializerMethodField()
+
     class Meta:
         model = Invoice
-        fields = '__all__'
+        fields = [
+            'id', 'invoice_number', 'amount', 'balance', 
+            'amount_paid', 'status', 'date_issued', 'due_date',
+            'allow_part_payment', 'min_installment_amount'
+        ]
 
-    def get_fee_structure_name(self, obj):
-        # Safely return name or a default string
-        if obj.fee_structure:
-            return obj.fee_structure.name
-        return "Standard Tuition"
-
-    def get_department_name(self, obj):
-        # Safely resolve department name if student and department exist
-        if obj.student and obj.student.department:
-            return obj.student.department.name
-        return "N/A"
-
-    def get_date_issued(self, obj):
-        # Ensure created_at (datetime) is returned as a date
-        if obj.created_at:
-            return obj.created_at.date() if hasattr(obj.created_at, 'date') else obj.created_at
-        return None
-
-    def get_due_date(self, obj):
-        # Ensure due_date is returned as a date
-        if obj.due_date:
-            return obj.due_date.date() if hasattr(obj.due_date, 'date') else obj.due_date
-        return None
+    def get_amount_paid(self, obj):
+        # Math: Total Bill - Remaining Balance = Paid Amount
+        return obj.amount - obj.balance
 
 
         
