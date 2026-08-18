@@ -29,6 +29,9 @@ from .serializers import (
 )
 from users.permissions import IsRegistrar
 
+# Final year level - single source of truth for graduating student queries
+FINAL_YEAR_LEVEL = '400'
+
 
 # ==============================================
 # REGISTRAR DASHBOARD VIEW
@@ -124,7 +127,7 @@ class RegistrarDashboardViewSet(viewsets.ViewSet):
                 'pending_final_approvals': pending_final_approvals,
                 'pending_clearance': pending_clearance,
                 'graduating_students': Student.objects.filter(
-                    level='400',  # Adjust based on your program
+                    level=FINAL_YEAR_LEVEL,  # Adjust based on your program
                     status='active'
                 ).count()
             },
@@ -1245,7 +1248,7 @@ class StudentClearanceViewSet(viewsets.ViewSet):
         """Get students pending clearance"""
         # Get final year students (adjust based on your program)
         final_year_students = Student.objects.filter(
-            level='400',  # Adjust level for your program
+            level=FINAL_YEAR_LEVEL,  # Adjust level for your program
             status='active'
         ).select_related('user', 'department')
         

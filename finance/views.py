@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 
+import hashlib
+import hmac
 # Models
 from .models import (
     FeeStructure, 
@@ -171,23 +173,37 @@ class PaystackPaymentViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def paystack_webhook(self, request):
         """
-        Handle Paystack server-to-server webhook
+        Handle Paystack server-to-server webhook with signature verification.
         """
-        # In production, verify the X-Paystack-Signature header here!
+        # Verify Paystack signature to prevent fraud
+        paystack_signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE')
+        if not paystack_signature:
+            return Response({'error': 'Missing signature header'}, status=400)
+
+        # Compute expected signature using HMAC-SHA256
+        secret = settings.PAYSTACK_SECRET_KEY
+        raw_body = request.body
+        expected_signature = hmac.new(
+            secret.encode('utf-8'),
+            raw_body,
+            hashlib.sha256
+        ).hexdigest()
+
+        if not hmac.compare_digest(expected_signature, paystack_signature):
+            return Response({'error': 'Invalid signature'}, status=400)
+
         reference = request.data.get('data', {}).get('reference')
-        
+
         if not reference:
             return Response({'error': 'No reference provided'}, status=400)
-        
-        # ✅ Decoupled Logic: Use Service
+
+        # ? Decoupled Logic: Use Service
         result = FinanceService.verify_paystack_transaction(reference)
-        
+
         if result['success']:
             return Response({'status': 'success'})
-        
+
         return Response({'error': 'Webhook processing failed'}, status=400)
-
-
 class FeeStructureViewSet(viewsets.ModelViewSet):
     """Fee structure operations (Admin/Bursar)"""
     queryset = FeeStructure.objects.select_related('department').all()

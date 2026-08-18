@@ -300,7 +300,7 @@ class GradeViewSet(viewsets.ModelViewSet):
         if not student_id:
             return Response({'error': 'student parameter is required'}, status=400)
 
-        grades = Grade.objects.filter(student_id=student_id)
+        grades = Grade.objects.filter(student_id=student_id).select_related('course')
         if session:
             grades = grades.filter(session=session)
         if semester:
@@ -328,7 +328,7 @@ class GradeViewSet(viewsets.ModelViewSet):
         if not student_id:
             return Response({'error': 'student parameter is required'}, status=400)
 
-        grades = Grade.objects.filter(student_id=student_id)
+        grades = Grade.objects.filter(student_id=student_id).select_related('course')
         if not grades.exists():
             return Response({'cgpa': 0, 'total_credits': 0})
 

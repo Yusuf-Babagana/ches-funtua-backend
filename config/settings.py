@@ -158,6 +158,10 @@ if DEBUG:
 
 
 # Paystack Configuration
+
+# SECURITY WARNING: The fallback keys below are test keys and MUST NOT be used in production.
+# Set PAYSTACK_SECRET_KEY and PAYSTACK_PUBLIC_KEY as environment variables with live keys.
+# NEVER commit real Paystack keys to version control.
 # Uses Test Keys by default if not found in environment
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', "sk_test_e965d34d77cf450271fb33124c98dfe7b82076e9")
 PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', "pk_test_9ff457e4cdd9aae7f23fe2b4080e370af50b4a1c")

@@ -178,14 +178,18 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             'course_offering__lecturer__user'
         )
         
+
+        # Prefetch all grades for this student/session to avoid N+1 queries
+        grades_map = {}
+        for g in Grade.objects.filter(
+            student=student,
+            session=current_semester.session
+        ).select_related('course'):
+            grades_map[(g.course_id, g.session)] = g
+
         results = []
         for reg in registrations:
-            grade = Grade.objects.filter(
-                student=student,
-                course=reg.course_offering.course,
-                session=current_semester.session
-            ).first()
-
+            grade = grades_map.get((reg.course_offering.course_id, current_semester.session))
             # Only show scores if published
             grade_data = None
             if grade and grade.status == 'published':

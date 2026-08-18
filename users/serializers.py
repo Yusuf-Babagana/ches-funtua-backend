@@ -350,52 +350,6 @@ class StaffRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 
-class HODCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer specifically for creating an HOD.
-    Creates User + Lecturer Profile + Assigns Department.
-    """
-    # Nested user data
-    user_data = serializers.DictField(write_only=True)
-    department_id = serializers.IntegerField(write_only=True)
-    staff_id = serializers.CharField(required=True)
-    designation = serializers.ChoiceField(choices=Lecturer.DESIGNATION_CHOICES)
-    
-    class Meta:
-        model = Lecturer
-        fields = ['user_data', 'department_id', 'staff_id', 'designation', 'is_hod']
-
-    def create(self, validated_data):
-        user_data = validated_data.pop('user_data')
-        department_id = validated_data.pop('department_id')
-        
-        # 1. Create User
-        password = user_data.pop('password')
-        user_data.pop('password_confirm', None)
-        user = User.objects.create_user(**user_data, password=password)
-        
-        # 2. Get Department
-        try:
-            department = Department.objects.get(id=department_id)
-        except Department.DoesNotExist:
-            user.delete()
-            raise serializers.ValidationError("Department not found")
-
-        # 3. Create Lecturer Profile
-        lecturer = Lecturer.objects.create(
-            user=user,
-            department=department,
-            is_hod=True,  # Force HOD status
-            **validated_data
-        )
-        
-        # 4. Update Department HOD link
-        department.hod = lecturer
-        department.save()
-        
-        return lecturer
-
-
 class ChangePasswordSerializer(serializers.Serializer):
     """
     Serializer for password change by authenticated user.

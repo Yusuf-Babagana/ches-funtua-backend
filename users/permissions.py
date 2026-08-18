@@ -58,7 +58,7 @@ class IsHOD(permissions.BasePermission):
         if isinstance(obj, Department):
             return obj == hod_department
         
-        return True
+        return False
 
 class IsRegistrar(permissions.BasePermission):
     """Permission for registrar"""

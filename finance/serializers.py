@@ -19,13 +19,17 @@ class FeeStructureSerializer(serializers.ModelSerializer):
             'sports_fee', 'medical_fee', 'other_fees', 'total_fee',
             'session', 'semester', 'is_active', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
+class CoercedDateField(serializers.DateField):
+    """A DateField that cleanly coerces datetimes to dates to prevent DRF AssertionErrors"""
+    def to_representation(self, value):
+        if hasattr(value, 'date'):
+            value = value.date()
+        return super().to_representation(value)
 
 class InvoiceSerializer(serializers.ModelSerializer):
     # ✅ Fix: Force conversion to simple date (YYYY-MM-DD)
-    date_issued = serializers.DateField(source='created_at', read_only=True)
-    due_date = serializers.DateField()
+    date_issued = CoercedDateField(source='created_at', read_only=True)
+    due_date = CoercedDateField()
     
     # ✅ New: Calculate how much the student has paid
     amount_paid = serializers.SerializerMethodField()

@@ -22,96 +22,6 @@ from academics.models import (
 from users.models import User, Student
 from finance.models import Invoice, Payment, FeeStructure
 from users.permissions import IsDeskOfficer, CanOverrideRegistration, CanVerifyDocuments
-from django.db import models # Added for the internal models
-
-# ==============================================
-# NEW MODELS FOR DESK OFFICER
-# ==============================================
-
-# Add these models to your academics/models.py if not present
-class StudentDocument(models.Model):
-    """Model for student document uploads and verification"""
-    DOCUMENT_TYPES = [
-        ('birth_certificate', 'Birth Certificate'),
-        ('o_level', 'O\'Level Result'),
-        ('jamb_result', 'JAMB Result'),
-        ('jamb_admission', 'JAMB Admission Letter'),
-        ('local_government', 'Local Government Certificate'),
-        ('medical_report', 'Medical Report'),
-        ('passport_photo', 'Passport Photograph'),
-        ('acceptance_fee', 'Acceptance Fee Receipt'),
-        ('school_fees', 'School Fees Receipt'),
-        ('other', 'Other Document'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('verified', 'Verified'),
-        ('rejected', 'Rejected'),
-        ('requires_update', 'Requires Update'),
-    ]
-    
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='documents')
-    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
-    document_name = models.CharField(max_length=200)
-    document_file = models.FileField(upload_to='student_documents/%Y/%m/%d/')
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    remarks = models.TextField(blank=True, null=True)
-    verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_documents')
-    verified_at = models.DateTimeField(null=True, blank=True)
-    
-    class Meta:
-        ordering = ['-uploaded_at']
-    
-    def __str__(self):
-        return f"{self.student.matric_number} - {self.get_document_type_display()}"
-
-
-class StudentQuery(models.Model):
-    """Model for student queries/complaints"""
-    QUERY_TYPES = [
-        ('registration', 'Registration Issue'),
-        ('payment', 'Payment Issue'),
-        ('document', 'Document Upload Issue'),
-        ('course', 'Course Registration'),
-        ('result', 'Result Issue'),
-        ('personal_info', 'Personal Information'),
-        ('other', 'Other Issue'),
-    ]
-    
-    PRIORITY_CHOICES = [
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High'),
-        ('urgent', 'Urgent'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('open', 'Open'),
-        ('in_progress', 'In Progress'),
-        ('resolved', 'Resolved'),
-        ('closed', 'Closed'),
-    ]
-    
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='queries')
-    query_type = models.CharField(max_length=50, choices=QUERY_TYPES)
-    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
-    subject = models.CharField(max_length=200)
-    description = models.TextField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
-    resolution_notes = models.TextField(blank=True, null=True)
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_queries')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
-    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resolved_queries')
-    
-    class Meta:
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"{self.student.matric_number} - {self.subject}"
 
 
 # ==============================================
@@ -986,6 +896,7 @@ class ManualRegistrationOverrideViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsDeskOfficer]
     
     @action(detail=False, methods=['post'])
+    @transaction.atomic
     def manual_registration(self, request):
         """Enhanced manual course registration for students"""
         student_id = request.data.get('student_id')

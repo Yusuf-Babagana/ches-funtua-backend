@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from .models import Student, Lecturer, HOD, StaffProfile
+from .models import Student, Lecturer, StaffProfile
 import secrets
 import string
 
@@ -59,10 +59,11 @@ class ICTService:
             )
             
         elif role == 'hod':
-            HOD.objects.create(
+            Lecturer.objects.create(
                 user=user,
                 staff_id=data['staff_id'],
-                department=dept
+                department=dept,
+                is_hod=True
             )
             
         # For non-academic staff (Bursar, Registrar, etc.)

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models import F
+from django.db import transaction
 
 from .models import Course, CourseOffering, CourseRegistration, Semester
 from finance.models import Invoice # ✅ ADDED IMPORT
@@ -155,6 +156,7 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=False, methods=['post'])
+    @transaction.atomic
     def register_courses(self, request):
         """Submit Registration."""
         student = request.user.student_profile

@@ -736,7 +736,7 @@ class ExamListViewSet(viewsets.ViewSet):
     
     def _calculate_student_cgpa(self, student):
         """Calculate student's CGPA"""
-        grades = Grade.objects.filter(student=student)
+        grades = Grade.objects.filter(student=student).select_related('course')
         if not grades.exists():
             return 0.0
         

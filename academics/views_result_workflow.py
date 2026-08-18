@@ -409,3 +409,4 @@ class RegistrarResultWorkflowViewSet(BaseResultWorkflowViewSet):
         self._update_student_academic_records(course, semester)
         
         return Response({'message': 'Published grades to students'})
+

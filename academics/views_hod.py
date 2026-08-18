@@ -222,7 +222,7 @@ class HODDashboardViewSet(viewsets.ViewSet):
         if error_response:
             return error_response
         
-        lecturers = Lecturer.objects.all().select_related('user').order_by('staff_id')
+        lecturers = Lecturer.objects.filter(department=department).select_related('user').order_by('staff_id')
         
         # Apply filters
         designation = request.query_params.get('designation')
