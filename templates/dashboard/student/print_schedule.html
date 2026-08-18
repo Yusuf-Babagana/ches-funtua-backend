@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Course Registration Form{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print { .no-print { display:none !important; } body { background:#fff; } }
+    body { background:var(--slate-100); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh; padding:2rem 1rem;">
+    <div class="no-print" style="max-width:56rem; margin:0 auto 1.5rem; display:flex; justify-content:space-between;">
+        <a href="{% url 'portal:dashboard_student' %}" class="btn btn-outline">&larr; Back to Dashboard</a>
+        <button type="button" class="btn btn-primary" onclick="window.print()">Print Document</button>
+    </div>
+
+    <div class="card" style="max-width:56rem; margin:0 auto;">
+        <div class="card-body" style="padding:3rem;">
+            <div style="text-align:center; border-bottom:2px solid var(--slate-900); padding-bottom:1.5rem; margin-bottom:2rem;">
+                <div style="height:4rem; width:4rem; border-radius:999px; background:var(--teal-50); border:2px solid var(--teal-600); display:flex; align-items:center; justify-content:center; margin:0 auto 1rem; font-weight:800; color:var(--teal-700);">CF</div>
+                <h1 style="font-size:1.5rem; text-transform:uppercase; letter-spacing:0.05em;">CHESF</h1>
+                <h2 style="font-size:1rem; text-transform:uppercase; color:var(--slate-600); margin-top:0.25rem;">Course Registration Form (CRF)</h2>
+                <p class="text-sm text-muted" style="margin-top:0.5rem;">Generated on {% now "F j, Y" %}</p>
+            </div>
+
+            <div style="margin-bottom:2rem;">
+                <h3 class="text-xs" style="text-transform:uppercase; color:var(--slate-400); border-bottom:1px solid var(--slate-200); padding-bottom:0.5rem; margin-bottom:1rem; letter-spacing:0.05em;">Student Information</h3>
+                <div class="grid grid-2">
+                    <div><p class="text-xs text-muted" style="text-transform:uppercase;">Full Name</p><p style="font-weight:700;">{{ student.user.full_name }}</p></div>
+                    <div><p class="text-xs text-muted" style="text-transform:uppercase;">Matriculation Number</p><p class="mono" style="font-weight:700;">{{ student.matric_number }}</p></div>
+                    <div><p class="text-xs text-muted" style="text-transform:uppercase;">Department</p><p style="font-weight:700;">{{ student.department.name|default:"N/A" }}</p></div>
+                    <div><p class="text-xs text-muted" style="text-transform:uppercase;">Level</p><p style="font-weight:700;">{{ student.level }} Level</p></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:3rem;">
+                <h3 class="text-xs" style="text-transform:uppercase; color:var(--slate-400); border-bottom:1px solid var(--slate-200); padding-bottom:0.5rem; margin-bottom:1rem; letter-spacing:0.05em;">Registered Courses ({{ current_semester.session|default:"Current Session" }})</h3>
+                {% if not schedule %}
+                <div style="text-align:center; padding:2rem; border:1px dashed var(--slate-300); border-radius:var(--radius); color:var(--slate-500);">No courses registered for this session.</div>
+                {% else %}
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th style="width:3rem;">S/N</th><th>Course Code</th><th>Course Title</th><th style="text-align:center;">Units</th></tr></thead>
+                        <tbody>
+                            {% for row in schedule %}
+                            <tr>
+                                <td style="text-align:center;">{{ forloop.counter }}</td>
+                                <td style="font-weight:700;">{{ row.course.code }}</td>
+                                <td>{{ row.course.title }}</td>
+                                <td style="text-align:center; font-weight:700;">{{ row.course.credits }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr style="font-weight:700; background:var(--slate-50);">
+                                <td colspan="3" style="text-align:right; text-transform:uppercase;" class="text-xs">Total Units Registered:</td>
+                                <td style="text-align:center; color:var(--teal-700);">{{ total_credits }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="grid grid-2" style="margin-top:5rem; gap:3rem;">
+                <div style="text-align:center;">
+                    <div style="border-bottom:1px solid var(--slate-400); height:2.5rem;"></div>
+                    <p class="text-xs" style="text-transform:uppercase; font-weight:700; margin-top:0.4rem;">Student's Signature &amp; Date</p>
+                </div>
+                <div style="text-align:center;">
+                    <div style="border-bottom:1px solid var(--slate-400); height:2.5rem;"></div>
+                    <p class="text-xs" style="text-transform:uppercase; font-weight:700; margin-top:0.4rem;">HOD's Signature / Stamp</p>
+                </div>
+            </div>
+
+            <p class="text-xs text-muted" style="text-align:center; margin-top:3rem; padding-top:1rem; border-top:1px solid var(--slate-200);">
+                Document securely generated by the CHESF Portal. Valid only with official stamp.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

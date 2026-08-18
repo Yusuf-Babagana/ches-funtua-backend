@@ -1,0 +1,27 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Account Settings{% endblock %}
+{% block page_subtitle %}Update your password to keep your account secure.{% endblock %}
+
+{% block dashboard_content %}
+<div class="card" style="max-width:32rem; margin:0 auto;">
+    <div class="card-header"><p class="card-title">Security</p></div>
+    <div class="card-body">
+        {% if form.non_field_errors %}
+        <div class="form-error">{% for error in form.non_field_errors %}{{ error }}{% endfor %}</div>
+        {% endif %}
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<p class="help-text">{{ field.help_text|safe }}</p>{% endif %}
+                {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary btn-block btn-lg">Update Password</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

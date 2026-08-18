@@ -1,0 +1,85 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}Tuition &amp; Fees{% endblock %}
+{% block page_subtitle %}View and pay your academic fees.{% endblock %}
+
+{% block dashboard_content %}
+{% if invoice_error %}
+<div class="alert alert-danger" style="margin-bottom:1.25rem;">{{ invoice_error }}</div>
+{% endif %}
+
+<div class="alert alert-info" style="margin-bottom:1.5rem;">
+    Pay securely through Paystack &mdash; cards, bank transfers, and USSD supported.
+</div>
+
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value">{{ invoices|length }}</div><div class="stat-tile__label">Total Invoices</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--success);">{{ total_amount|naira }}</div><div class="stat-tile__label">Total Billed</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:#7c3aed;">{{ total_paid|naira }}</div><div class="stat-tile__label">Total Paid</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ total_outstanding|naira }}</div><div class="stat-tile__label">Outstanding</div></div>
+</div>
+
+{% if current_invoice %}
+<div class="card" style="border-color:var(--teal-200); margin-bottom:1.5rem;">
+    <div class="card-header">
+        <p class="card-title">Current Semester Invoice
+            {% if current_invoice.status == 'paid' %}<span class="badge badge-success" style="margin-left:0.5rem;">Paid</span>{% endif %}
+        </p>
+    </div>
+    <div class="card-body" style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:1rem;">
+        <div>
+            <p style="font-weight:600; font-size:1.05rem;">{{ current_invoice.description }}</p>
+            <p class="text-sm text-muted">Due {{ current_invoice.due_date|date:"M j, Y" }} &middot; {{ current_invoice.session }} - {{ current_invoice.semester }}</p>
+            <div style="display:flex; gap:1rem; align-items:center; margin-top:0.6rem;">
+                <span class="badge {% if current_invoice.status == 'paid' %}badge-success{% elif current_invoice.status == 'partially_paid' %}badge-info{% else %}badge-warning{% endif %}">{{ current_invoice.get_status_display }}</span>
+                <span style="font-weight:700; font-size:1.1rem;">{{ current_invoice.amount|naira }}</span>
+                {% if current_invoice.balance > 0 %}<span style="color:var(--danger); font-weight:600;">Balance: {{ current_invoice.balance|naira }}</span>{% endif %}
+            </div>
+        </div>
+        {% if current_invoice.balance > 0 %}
+        <form method="post" action="{% url 'portal:student_pay_invoice' current_invoice.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="amount" value="{{ current_invoice.balance }}">
+            <button type="submit" class="btn btn-primary btn-lg">Pay {{ current_invoice.balance|naira }} with Paystack</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header"><p class="card-title">Invoice History</p></div>
+    <div class="card-body">
+        {% if not invoices %}
+        <div style="text-align:center; padding:2.5rem 0; color:var(--slate-400);">No invoices found.</div>
+        {% else %}
+        <div class="stack gap-3">
+            {% for inv in invoices %}
+            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem; align-items:center; padding:1rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+                <div>
+                    <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.3rem;">
+                        <span style="font-weight:700;">{{ inv.invoice_number }}</span>
+                        <span class="badge {% if inv.status == 'paid' %}badge-success{% elif inv.status == 'partially_paid' %}badge-info{% else %}badge-warning{% endif %}">{{ inv.get_status_display }}</span>
+                    </div>
+                    <p class="text-sm text-muted">{{ inv.description }}</p>
+                    <p class="text-xs text-muted">{{ inv.session }} - {{ inv.semester }} &middot; Due {{ inv.due_date|date:"M j, Y" }}</p>
+                </div>
+                <div style="text-align:right;">
+                    <p style="font-weight:700;">{{ inv.amount|naira }}</p>
+                    {% if inv.balance > 0 %}
+                    <p class="text-sm" style="color:var(--danger); font-weight:600;">Balance: {{ inv.balance|naira }}</p>
+                    <form method="post" action="{% url 'portal:student_pay_invoice' inv.id %}" style="margin-top:0.4rem;">
+                        {% csrf_token %}
+                        <input type="hidden" name="amount" value="{{ inv.balance }}">
+                        <button type="submit" class="btn btn-primary btn-sm">Pay Balance</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Academic Transcript{% endblock %}
+{% block page_subtitle %}Unofficial transcript generated from published results.{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print { .no-print { display:none !important; } }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="no-print" style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
+    <button type="button" class="btn btn-primary" onclick="window.print()">Print Transcript</button>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding:2.5rem;">
+        <div style="text-align:center; border-bottom:1px solid var(--slate-200); padding-bottom:1.5rem; margin-bottom:1.5rem;">
+            <h1 style="font-size:1.3rem; text-transform:uppercase; letter-spacing:0.05em;">Official Transcript</h1>
+            <p class="text-sm text-muted" style="margin-top:0.25rem;">CHES Funtua College Management System</p>
+        </div>
+
+        <div class="grid grid-2" style="margin-bottom:2rem;">
+            <div><p class="text-xs text-muted">Student Name</p><p style="font-weight:700;">{{ request.user.full_name }}</p></div>
+            <div style="text-align:right;"><p class="text-xs text-muted">Matric Number</p><p class="mono" style="font-weight:700;">{{ student_profile.matric_number }}</p></div>
+            <div><p class="text-xs text-muted">Department</p><p style="font-weight:600;">{{ student_profile.department.name|default:"N/A" }}</p></div>
+            <div style="text-align:right;"><p class="text-xs text-muted">Current Level</p><p style="font-weight:600;">{{ student_profile.level }}</p></div>
+        </div>
+
+        {% if not transcript %}
+        <p class="text-muted text-sm" style="text-align:center; padding:2rem 0;">No transcript data available yet.</p>
+        {% else %}
+        <div class="stack gap-4">
+            {% for sem in transcript %}
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:1px solid var(--slate-100); padding-bottom:0.35rem; margin-bottom:0.5rem;">
+                    <h3 style="font-size:0.85rem; text-transform:uppercase; font-weight:700;">{{ sem.session }} | {{ sem.semester }} Semester</h3>
+                    <span class="mono text-xs text-muted">GPA: {{ sem.semester_stats.gpa }}</span>
+                </div>
+                <div class="table-wrap" style="border:none;">
+                    <table class="data-table">
+                        <thead><tr><th>Code</th><th>Course Title</th><th>Unit</th><th>Grade</th><th>Points</th></tr></thead>
+                        <tbody>
+                            {% for course in sem.courses %}
+                            <tr>
+                                <td class="mono text-xs">{{ course.code }}</td>
+                                <td>{{ course.title }}</td>
+                                <td>{{ course.unit }}</td>
+                                <td><strong>{{ course.grade }}</strong></td>
+                                <td>{{ course.points }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="grid grid-3" style="background:var(--slate-50); padding:1.25rem; border-radius:var(--radius); margin-top:2rem;">
+            <div style="text-align:center;"><p class="text-xs text-muted" style="text-transform:uppercase;">Total Units</p><p style="font-size:1.3rem; font-weight:800;">{{ summary.total_credits_completed }}</p></div>
+            <div style="text-align:center; border-left:1px solid var(--slate-200);"><p class="text-xs text-muted" style="text-transform:uppercase;">CGPA</p><p style="font-size:1.3rem; font-weight:800; color:var(--teal-700);">{{ summary.cgpa }}</p></div>
+            <div style="text-align:center; border-left:1px solid var(--slate-200);"><p class="text-xs text-muted" style="text-transform:uppercase;">Class</p><p style="font-size:0.95rem; font-weight:800; margin-top:0.25rem;">{{ summary.degree_class }}</p></div>
+        </div>
+
+        <div style="margin-top:2.5rem; display:flex; justify-content:space-between; align-items:flex-end;">
+            <div class="text-xs text-muted">
+                <p>Generated on: {% now "F j, Y H:i" %}</p>
+                <p>This is an unofficial transcript.</p>
+            </div>
+            <div style="text-align:center; width:9rem;">
+                <div style="border-bottom:1px solid var(--slate-300); margin-bottom:0.4rem; height:1.5rem;"></div>
+                <p class="text-xs" style="font-weight:700; text-transform:uppercase;">Registrar</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, views_student
 
 app_name = 'portal'
 
@@ -10,7 +10,24 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
 
     path('dashboard/', views.dashboard_root, name='dashboard_root'),
-    path('dashboard/student/', views.dashboard_student, name='dashboard_student'),
+
+    # --- Student (Phase 3 -- fully migrated) ---
+    path('dashboard/student/', views_student.dashboard, name='dashboard_student'),
+    path('dashboard/student/courses/', views_student.courses, name='student_courses'),
+    path('dashboard/student/courses/<int:registration_id>/drop/', views_student.drop_course, name='student_drop_course'),
+    path('dashboard/student/registration/', views_student.registration, name='student_registration'),
+    path('dashboard/student/results/', views_student.results, name='student_results'),
+    path('dashboard/student/transcript/', views_student.transcript, name='student_transcript'),
+    path('dashboard/student/exam-card/', views_student.exam_card, name='student_exam_card'),
+    path('dashboard/student/fees/', views_student.fees, name='student_fees'),
+    path('dashboard/student/fees/pay/<int:invoice_id>/', views_student.pay_invoice, name='student_pay_invoice'),
+    path('dashboard/student/payments/', views_student.payments, name='student_payments'),
+    path('dashboard/student/payments/verify/', views_student.payment_verify, name='student_payment_verify'),
+    path('dashboard/student/payments/<int:payment_id>/receipt/', views_student.receipt, name='student_receipt'),
+    path('dashboard/student/print-schedule/', views_student.print_schedule, name='student_print_schedule'),
+    path('dashboard/student/settings/', views_student.settings_view, name='student_settings'),
+
+    # --- Other roles (placeholders, migrated in later phases) ---
     path('dashboard/lecturer/', views.dashboard_lecturer, name='dashboard_lecturer'),
     path('dashboard/hod/', views.dashboard_hod, name='dashboard_hod'),
     path('dashboard/registrar/', views.dashboard_registrar, name='dashboard_registrar'),

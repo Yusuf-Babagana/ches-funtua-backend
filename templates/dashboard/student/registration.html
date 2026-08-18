@@ -1,0 +1,83 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Course Registration{% endblock %}
+{% block page_subtitle %}Select courses for the current semester.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .course-pick { display:flex; align-items:flex-start; gap:0.85rem; padding:1rem 1.1rem; border-bottom:1px solid var(--slate-100); }
+    .course-pick:last-child { border-bottom:none; }
+    .course-pick:hover { background:var(--slate-50); }
+    .course-pick input[type=checkbox] { margin-top:0.3rem; width:1.05rem; height:1.05rem; accent-color:var(--teal-600); }
+    .reg-counter { position: sticky; bottom: 0; background: var(--white); border-top: 1px solid var(--slate-200); padding: 1rem 1.25rem;
+        display:flex; justify-content:space-between; align-items:center; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+{% if not reg_status.has_current_semester %}
+<div class="alert alert-danger">{{ reg_status.message|default:"No active academic session found." }}</div>
+
+{% else %}
+
+<div class="card" style="margin-bottom:1.25rem;">
+    <div class="card-body" style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem; align-items:center;">
+        <div>
+            <p class="text-sm text-muted">Registered / pending this semester</p>
+            <p style="font-size:1.5rem; font-weight:800;">{{ reg_status.registered_courses }} <span class="text-sm text-muted" style="font-weight:500;">/ {{ reg_status.max_courses }}</span></p>
+        </div>
+        {% if not reg_status.has_paid_fees %}
+        <div class="alert alert-warning" style="margin:0;">
+            Fees unpaid &mdash; up to <strong>{{ reg_status.remaining_free_courses }}</strong> more free course(s) allowed
+            (<a href="{% url 'portal:student_fees' %}">pay now</a> to unlock full registration).
+        </div>
+        {% else %}
+        <span class="badge badge-success">Fees paid &middot; up to 15 courses</span>
+        {% endif %}
+    </div>
+</div>
+
+{% if not reg_status.can_register %}
+<div class="alert alert-info">
+    Registration is currently closed for your level, or you've reached your course limit for this semester.
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body" style="padding:0;">
+            {% if not offerings %}
+            <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No available courses found.</div>
+            {% else %}
+            {% for offering in offerings %}
+            <label class="course-pick">
+                <input type="checkbox" name="course_offering_ids" value="{{ offering.id }}" {% if not reg_status.can_register %}disabled{% endif %}>
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                        <span style="font-weight:700;">{{ offering.course.code }}: {{ offering.course.title }}</span>
+                        <span class="badge badge-neutral">{{ offering.course.credits }} Units</span>
+                    </div>
+                    <div class="text-sm text-muted" style="margin-top:0.3rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
+                        <span>{{ offering.course.department.name }}</span>
+                        <span>Lecturer: {{ offering.lecturer.user.get_full_name|default:"TBA" }}</span>
+                        <span class="badge {% if offering.available_slots > 10 %}badge-neutral{% else %}badge-warning{% endif %}">
+                            {{ offering.available_slots }} slots left
+                        </span>
+                    </div>
+                </div>
+            </label>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% if offerings and reg_status.can_register %}
+        <div class="reg-counter">
+            <span class="text-sm text-muted">Select courses above, then submit.</span>
+            <button type="submit" class="btn btn-primary">Register Selected</button>
+        </div>
+        {% endif %}
+    </div>
+</form>
+
+{% endif %}
+{% endblock %}

@@ -89,11 +89,6 @@ def _placeholder_dashboard(request, role, title, url_name):
     })
 
 
-@role_required('student')
-def dashboard_student(request):
-    return _placeholder_dashboard(request, 'student', 'Student Dashboard', 'portal:dashboard_student')
-
-
 @role_required('lecturer')
 def dashboard_lecturer(request):
     return _placeholder_dashboard(request, 'lecturer', 'Lecturer Dashboard', 'portal:dashboard_lecturer')

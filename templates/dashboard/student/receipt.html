@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+
+{% block title %}Receipt {{ payment.reference_id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print { .no-print { display:none !important; } body { background:#fff; } }
+    body { background:var(--slate-100); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh; padding:2rem 1rem; display:flex; flex-direction:column; align-items:center;">
+    <div class="no-print" style="width:100%; max-width:34rem; display:flex; justify-content:space-between; margin-bottom:1rem;">
+        <a href="{% url 'portal:student_payments' %}" class="btn btn-outline">&larr; Back</a>
+        <button type="button" class="btn btn-primary" onclick="window.print()">Print Receipt</button>
+    </div>
+
+    <div class="card" style="width:100%; max-width:34rem; overflow:hidden;">
+        <div style="background:var(--teal-700); color:#fff; padding:2rem; text-align:center;">
+            <h1 style="color:#fff; font-size:1.4rem; text-transform:uppercase; letter-spacing:0.08em;">Payment Receipt</h1>
+            <p style="opacity:0.9; margin-top:0.4rem;">CHES Funtua</p>
+            <p class="mono" style="opacity:0.75; font-size:0.75rem; margin-top:0.75rem;">{{ payment.reference_id }}</p>
+        </div>
+
+        <div class="card-body" style="padding:2.5rem;">
+            <div class="grid grid-2" style="border-bottom:1px solid var(--slate-100); padding-bottom:1rem; margin-bottom:1.5rem;">
+                <div><p class="text-xs text-muted">Date Paid</p><p style="font-weight:600;">{{ payment.payment_date|date:"F j, Y"|default:"N/A" }}</p></div>
+                <div style="text-align:right;"><p class="text-xs text-muted">Time</p><p style="font-weight:600;">{{ payment.payment_date|time:"g:i A"|default:"N/A" }}</p></div>
+            </div>
+
+            <div class="grid grid-2" style="margin-bottom:1.5rem;">
+                <div><p class="text-xs text-muted">Student Name</p><p style="font-weight:700;">{{ student.user.full_name }}</p></div>
+                <div style="text-align:right;"><p class="text-xs text-muted">Matric Number</p><p class="mono" style="font-weight:700;">{{ student.matric_number }}</p></div>
+            </div>
+
+            <div style="background:var(--slate-50); border:1px solid var(--slate-100); border-radius:var(--radius); padding:1.5rem;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;"><span class="text-muted">Payment Description</span><span style="font-weight:600;">{{ payment.description|default:"Tuition Payment" }}</span></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;"><span class="text-muted">Payment Method</span><span style="font-weight:600;">{{ payment.get_payment_method_display }}</span></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;"><span class="text-muted">Invoice Number</span><span class="mono" style="font-weight:600;">{{ payment.invoice.invoice_number|default:"—" }}</span></div>
+                <hr style="border:none; border-top:1px solid var(--slate-200); margin:1rem 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:700; font-size:1.05rem;">Total Amount</span>
+                    <span style="font-weight:800; font-size:1.5rem; color:var(--teal-700);">{{ payment.amount|naira }}</span>
+                </div>
+            </div>
+
+            <div style="margin-top:2.5rem; padding-top:1.5rem; border-top:1px solid var(--slate-100); display:flex; justify-content:space-between; align-items:flex-end;">
+                <div class="text-xs text-muted">
+                    <p>System Generated Receipt</p>
+                    <p>Valid without signature</p>
+                </div>
+                <div style="text-align:right;">
+                    <div style="width:9rem; border-bottom:1px solid var(--slate-300); margin-bottom:0.3rem; height:2rem;"></div>
+                    <p class="text-xs text-muted" style="font-weight:700; text-transform:uppercase;">Bursar's Office</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Exam Card{% endblock %}
+{% block page_subtitle %}Your examination pass for the current semester.{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        @page { size: A5 portrait; margin: 0; }
+        .no-print { display:none !important; }
+    }
+    .exam-card { border:2px solid var(--slate-300); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); max-width:34rem; margin:0 auto; }
+    .exam-card__head { background:linear-gradient(90deg, var(--teal-800), var(--emerald-700)); color:#fff; padding:1.5rem; display:flex; justify-content:space-between; align-items:center; }
+    .exam-card__body { padding:1.5rem; }
+    .exam-card__field { border-left:2px solid var(--teal-500); padding-left:0.75rem; }
+    .exam-card__field p:first-child { font-size:0.65rem; text-transform:uppercase; font-weight:700; color:var(--slate-500); }
+    .exam-card__field p:last-child { font-weight:700; }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+{% if error %}
+<div class="card" style="max-width:28rem; margin:2rem auto; text-align:center;">
+    <div class="card-body" style="padding:3rem 1.5rem;">
+        <h3 class="card-title" style="color:var(--danger);">Access Denied</h3>
+        <p class="card-description">{{ error }}</p>
+        <div style="margin-top:1.5rem; display:flex; gap:0.75rem; justify-content:center;">
+            <a href="{% url 'portal:student_fees' %}" class="btn btn-outline">View Finances</a>
+            <a href="{% url 'portal:dashboard_student' %}" class="btn btn-primary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="no-print" style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
+    <button type="button" class="btn btn-primary" onclick="window.print()">Print Card</button>
+</div>
+
+<div class="exam-card">
+    <div class="exam-card__head">
+        <div style="display:flex; align-items:center; gap:1rem;">
+            <div style="height:3.5rem; width:3.5rem; border-radius:999px; background:#fff; color:var(--teal-800); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.3rem;">CF</div>
+            <div>
+                <h1 style="color:#fff; font-size:1.1rem; text-transform:uppercase;">CHES Funtua</h1>
+                <p style="opacity:0.9; font-size:0.75rem;">Health &amp; Environmental Sciences</p>
+                <span class="badge" style="background:rgba(255,255,255,0.2); color:#fff; margin-top:0.4rem;">Examination Pass</span>
+            </div>
+        </div>
+        <div style="text-align:right;">
+            <p style="font-weight:800;">{{ data.semester.session }}</p>
+            <p style="font-size:0.7rem; opacity:0.9; text-transform:uppercase;">{{ data.semester.get_semester_display }} Semester</p>
+        </div>
+    </div>
+
+    <div class="exam-card__body">
+        <div class="grid grid-2" style="border-bottom:1px dashed var(--slate-300); padding-bottom:1.25rem; margin-bottom:1.25rem;">
+            <div class="exam-card__field"><p>Full Name</p><p>{{ request.user.full_name }}</p></div>
+            <div class="exam-card__field"><p>Matric Number</p><p class="mono">{{ student_profile.matric_number }}</p></div>
+            <div class="exam-card__field"><p>Department</p><p>{{ student_profile.department.name|default:"N/A" }}</p></div>
+            <div class="exam-card__field"><p>Level</p><p>{{ student_profile.level }} Level</p></div>
+        </div>
+
+        <h3 style="font-size:0.85rem; margin-bottom:0.75rem;">Registered Courses</h3>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>Code</th><th>Course Title</th><th style="text-align:center;">Unit</th><th style="text-align:center;">Sign</th></tr></thead>
+                <tbody>
+                    {% for course in data.courses %}
+                    <tr>
+                        <td class="mono" style="font-weight:700; color:var(--teal-700);">{{ course.code }}</td>
+                        <td>{{ course.title }}</td>
+                        <td style="text-align:center;">{{ course.unit }}</td>
+                        <td></td>
+                    </tr>
+                    {% endfor %}
+                    <tr style="font-weight:700; background:var(--slate-50);">
+                        <td colspan="2" style="text-align:right;">TOTAL UNITS</td>
+                        <td style="text-align:center; color:var(--teal-700);">{{ data.total_units }}</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top:1.5rem; display:flex; justify-content:space-between; align-items:flex-end; gap:1rem;">
+            <div class="alert alert-warning" style="margin:0; font-size:0.75rem;">
+                <strong>Examination Rules:</strong> Bring this card to exams. Do not write on this card. No malpractice allowed.
+            </div>
+            <div style="text-align:center; width:10rem; flex-shrink:0;">
+                <div style="border-bottom:2px solid var(--slate-800); height:2.5rem;"></div>
+                <p class="text-xs" style="font-weight:700; text-transform:uppercase; margin-top:0.25rem;">Exam Officer</p>
+                <p class="text-xs text-muted">{{ data.generated_at|date:"M j, Y" }}</p>
+            </div>
+        </div>
+    </div>
+    <div style="height:0.4rem; background:linear-gradient(90deg, var(--emerald-500), var(--teal-800));"></div>
+</div>
+{% endif %}
+{% endblock %}

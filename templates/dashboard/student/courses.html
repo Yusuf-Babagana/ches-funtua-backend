@@ -1,0 +1,49 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}My Courses{% endblock %}
+{% block page_subtitle %}{{ schedule|length }} courses &middot; {{ total_credits }} total units this semester.{% endblock %}
+
+{% block dashboard_content %}
+<div style="display:flex; justify-content:flex-end; margin-bottom:1.25rem;">
+    <a href="{% url 'portal:student_registration' %}" class="btn btn-primary">+ Register More</a>
+</div>
+
+{% if not schedule %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3.5rem 1.5rem;">
+        <h3 class="card-title">No courses registered</h3>
+        <p class="card-description">You haven't registered for any courses this semester yet.</p>
+        <a href="{% url 'portal:student_registration' %}" class="btn btn-primary" style="margin-top:1.25rem;">Go to Registration</a>
+    </div>
+</div>
+{% else %}
+<div class="stack gap-3">
+    {% for row in schedule %}
+    <div class="card">
+        <div class="card-body" style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem; align-items:center;">
+            <div>
+                <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.4rem;">
+                    <span class="mono" style="font-weight:700; color:var(--teal-800); background:var(--teal-50); padding:0.15rem 0.5rem; border-radius:var(--radius-sm); border:1px solid var(--teal-100);">{{ row.course.code }}</span>
+                    <span class="badge {% if row.registration.status == 'registered' %}badge-success{% elif row.registration.status == 'pending' %}badge-warning{% else %}badge-neutral{% endif %}">
+                        {{ row.registration.get_status_display }}
+                    </span>
+                </div>
+                <p style="font-weight:600; font-size:1.05rem;">{{ row.course.title }}</p>
+                <div class="text-sm text-muted" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:0.5rem;">
+                    <span>{{ row.course.department.name }}</span>
+                    <span>{{ row.lecturer_name }}</span>
+                    <span>{{ row.course.credits }} Units</span>
+                    <span>{{ row.registration.registration_date|date:"M j, Y" }}</span>
+                </div>
+            </div>
+            <form method="post" action="{% url 'portal:student_drop_course' row.registration.id %}"
+                  data-confirm="Are you sure you want to drop {{ row.course.code }}? This cannot be undone.">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">Drop</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
