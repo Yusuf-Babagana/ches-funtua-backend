@@ -69,6 +69,7 @@ class Student(models.Model):
     matric_number = models.CharField(max_length=20, unique=True)
     level = models.CharField(max_length=10, choices=LEVEL_CHOICES)
     department = models.ForeignKey('academics.Department', on_delete=models.SET_NULL, null=True)
+    program = models.ForeignKey('academics.Program', on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     admission_date = models.DateField()
     date_of_birth = models.DateField(null=True, blank=True)

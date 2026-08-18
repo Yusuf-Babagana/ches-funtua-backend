@@ -572,12 +572,130 @@ class EmergencyRegistration(models.Model):
     is_approved = models.BooleanField(default=False)
     remarks = models.TextField(blank=True, null=True)
     registration_data = models.JSONField(default=dict)
-    
+
     class Meta:
         ordering = ['-approved_at']
         verbose_name = 'Emergency Registration'
         verbose_name_plural = 'Emergency Registrations'
         unique_together = ['student', 'semester']
-    
+
     def __str__(self):
         return f"Emergency Reg - {self.student.matric_number} - {self.semester}"
+
+
+# ==============================================
+# STUDENT PORTAL EXPANSION (CHESF Student Portal Digest)
+# ==============================================
+
+class Program(models.Model):
+    """
+    Academic programme a student is admitted into (e.g. National Diploma,
+    Professional/Higher Diploma), and how many semesters it runs for --
+    drives the student portal's "semester countdown" feature.
+
+    Seeded with 2 placeholder rows (ND=4 semesters, PD=2 semesters) via
+    data migration -- edit the real durations from the Django admin once
+    the actual programme list is available.
+    """
+    PROGRAM_TYPE_CHOICES = [
+        ('nd', 'National Diploma'),
+        ('pd', 'Professional Diploma'),
+        ('hnd', 'Higher National Diploma'),
+        ('degree', 'Degree'),
+    ]
+
+    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=20, unique=True)
+    program_type = models.CharField(max_length=10, choices=PROGRAM_TYPE_CHOICES)
+    duration_semesters = models.PositiveIntegerField(help_text="Total number of semesters in this programme")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Program'
+        verbose_name_plural = 'Programs'
+
+    def __str__(self):
+        return f"{self.name} ({self.duration_semesters} semesters)"
+
+
+class Announcement(models.Model):
+    """
+    A post from staff (lecturer/HOD/registrar/etc.) shown permanently on
+    the student portal. `department`/`level` left blank means visible to
+    everyone; set either to scope the audience.
+    """
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    posted_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, related_name='announcements_posted')
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True, related_name='announcements')
+    level = models.CharField(max_length=10, choices=Course.LEVEL_CHOICES, blank=True)
+    is_pinned = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-is_pinned', '-created_at']
+        verbose_name = 'Announcement'
+        verbose_name_plural = 'Announcements'
+
+    def __str__(self):
+        return self.title
+
+
+class PracticalCenter(models.Model):
+    """A facility a student can select for their Practical Fee payment."""
+    name = models.CharField(max_length=200)
+    location = models.CharField(max_length=200, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Practical Center'
+        verbose_name_plural = 'Practical Centers'
+
+    def __str__(self):
+        return self.name
+
+
+class PracticalCenterSelection(models.Model):
+    """A student's chosen practical center for a given session."""
+    student = models.ForeignKey('users.Student', on_delete=models.CASCADE, related_name='practical_center_selections')
+    center = models.ForeignKey(PracticalCenter, on_delete=models.CASCADE, related_name='selections')
+    session = models.CharField(max_length=9)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['student', 'session']
+        verbose_name = 'Practical Center Selection'
+        verbose_name_plural = 'Practical Center Selections'
+
+    def __str__(self):
+        return f"{self.student.matric_number} -> {self.center.name} ({self.session})"
+
+
+class IndexInformation(models.Model):
+    """
+    Bio-data collected after a student pays the Index Fee. The spec
+    referenced an attached field list that was never provided -- this is
+    a deliberately provisional, minimal set (mirrors fields already
+    collected elsewhere for students/applicants) and should be revised
+    once the real requirements are available.
+    """
+    student = models.OneToOneField('users.Student', on_delete=models.CASCADE, related_name='index_information')
+    passport_photo = models.ImageField(upload_to='index_information/%Y/%m/', null=True, blank=True)
+    state_of_origin = models.CharField(max_length=100, blank=True)
+    lga = models.CharField(max_length=100, blank=True, verbose_name='LGA')
+    next_of_kin_name = models.CharField(max_length=200, blank=True)
+    next_of_kin_phone = models.CharField(max_length=20, blank=True)
+    additional_notes = models.TextField(blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Index Information'
+        verbose_name_plural = 'Index Information'
+
+    def __str__(self):
+        return f"Index info - {self.student.matric_number}"

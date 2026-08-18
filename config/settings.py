@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'finance',
     'admissions',
     'audit',
+    'support',
 
     # Django-rendered frontend (session-authenticated templates; replaces
     # the retired Next.js/Vercel frontend, sits alongside the existing DRF
