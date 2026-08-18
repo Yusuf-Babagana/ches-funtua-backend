@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_hod, views_lecturer, views_student
+from . import views, views_hod, views_lecturer, views_registrar, views_student
 
 app_name = 'portal'
 
@@ -46,8 +46,17 @@ urlpatterns = [
     path('dashboard/hod/approvals/<int:course_id>/approve/', views_hod.approve_results, name='hod_approve_results'),
     path('dashboard/hod/approvals/<int:course_id>/reject/', views_hod.reject_results, name='hod_reject_results'),
 
+    # --- Registrar (Phase 6 -- fully migrated) ---
+    path('dashboard/registrar/', views_registrar.dashboard, name='dashboard_registrar'),
+    path('dashboard/registrar/applications/', views_registrar.applications, name='registrar_applications'),
+    path('dashboard/registrar/students/', views_registrar.students, name='registrar_students'),
+    path('dashboard/registrar/publication/', views_registrar.publication, name='registrar_publication'),
+    path('dashboard/registrar/publication/<int:course_id>/', views_registrar.publication_detail, name='registrar_publication_detail'),
+    path('dashboard/registrar/publication/<int:course_id>/publish/', views_registrar.publish_results, name='registrar_publish_results'),
+    path('dashboard/registrar/publication/<int:course_id>/reject/', views_registrar.reject_results, name='registrar_reject_results'),
+    path('dashboard/registrar/transcript/', views_registrar.transcript, name='registrar_transcript'),
+
     # --- Other roles (placeholders, migrated in later phases) ---
-    path('dashboard/registrar/', views.dashboard_registrar, name='dashboard_registrar'),
     path('dashboard/bursar/', views.dashboard_bursar, name='dashboard_bursar'),
     path('dashboard/desk-officer/', views.dashboard_desk_officer, name='dashboard_desk_officer'),
     path('dashboard/ict/', views.dashboard_ict, name='dashboard_ict'),

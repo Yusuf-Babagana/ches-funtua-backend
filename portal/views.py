@@ -89,11 +89,6 @@ def _placeholder_dashboard(request, role, title, url_name):
     })
 
 
-@role_required('registrar')
-def dashboard_registrar(request):
-    return _placeholder_dashboard(request, 'registrar', 'Registrar Dashboard', 'portal:dashboard_registrar')
-
-
 @role_required('bursar')
 def dashboard_bursar(request):
     return _placeholder_dashboard(request, 'bursar', 'Bursar Dashboard', 'portal:dashboard_bursar')

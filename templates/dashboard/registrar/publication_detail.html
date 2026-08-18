@@ -1,0 +1,56 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Publish: {{ course.code }}{% endblock %}
+{% block page_subtitle %}{{ course.title }}{% endblock %}
+
+{% block dashboard_content %}
+<a href="{% url 'portal:registrar_publication' %}" class="btn btn-outline btn-sm" style="margin-bottom:1.25rem;">&larr; Back to Publication Queue</a>
+
+{% if has_anomalies %}
+<div class="alert alert-warning" style="margin-bottom:1.25rem;">
+    <strong>{{ flagged_count }} score(s) flagged for review</strong> &mdash; unusual grade distribution or borderline scores (59/69/79/89) detected. Review before publishing, or publish anyway if the scores are correct.
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Student</th><th>Matric No.</th><th style="text-align:center;">Score</th><th style="text-align:center;">Grade</th><th></th></tr></thead>
+                <tbody>
+                    {% for g in grades %}
+                    <tr style="{% if g.is_flagged %}background:var(--warning-bg);{% endif %}">
+                        <td style="font-weight:600;">{{ g.student.user.full_name }}</td>
+                        <td class="mono text-xs">{{ g.student.matric_number }}</td>
+                        <td style="text-align:center; font-weight:700;">{{ g.score }}</td>
+                        <td style="text-align:center;">
+                            <span class="badge {% if g.grade_letter == 'F' %}badge-danger{% else %}badge-success{% endif %}">{{ g.grade_letter }}</span>
+                        </td>
+                        <td style="text-align:right;">{% if g.is_flagged %}<span class="badge badge-warning">Flagged</span>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="border-color:var(--danger-border); background:var(--danger-bg);">
+    <div class="card-body">
+        <p style="font-weight:600; color:#991b1b; margin-bottom:0.75rem;">Reason (required if returning to draft)</p>
+        <form method="post" action="{% url 'portal:registrar_reject_results' course.id %}" id="reject-form">
+            {% csrf_token %}
+            <textarea name="remark" rows="3" placeholder="Describe what needs to be corrected..."
+                      style="width:100%; padding:0.65rem 0.85rem; border:1px solid var(--danger-border); border-radius:var(--radius); font-family:inherit; font-size:0.875rem;"></textarea>
+        </form>
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1rem;">
+            <button type="submit" form="reject-form" class="btn btn-danger">Return to Draft</button>
+            <form method="post" action="{% url 'portal:registrar_publish_results' course.id %}" style="display:inline;"
+                  data-confirm="Publish results for {{ course.code }}? This makes grades visible to students immediately.">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" style="background:var(--success);">Publish Results</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
