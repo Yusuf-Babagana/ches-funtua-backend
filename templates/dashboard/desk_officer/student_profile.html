@@ -1,0 +1,112 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}{{ student.user.full_name }}{% endblock %}
+{% block page_subtitle %}{{ student.matric_number }} &middot; {{ student.department.name|default:"N/A" }} &middot; Level {{ student.level }}{% endblock %}
+
+{% block dashboard_content %}
+<a href="{% url 'portal:do_students' %}" class="btn btn-outline btn-sm" style="margin-bottom:1.25rem;">&larr; Back to Search</a>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; margin-bottom:1.5rem;">
+    <div class="card">
+        <div class="card-header"><p class="card-title">Current Registrations</p></div>
+        <div class="card-body">
+            {% if not registrations %}
+            <p class="text-sm text-muted">No registrations this semester.</p>
+            {% else %}
+            <div class="stack gap-2">
+                {% for reg in registrations %}
+                <div style="display:flex; justify-content:space-between; font-size:0.875rem;">
+                    <span>{{ reg.course_offering.course.code }}</span>
+                    <span class="badge badge-neutral">{{ reg.get_status_display }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <a href="{% url 'portal:do_registration' %}?student_id={{ student.id }}" class="btn btn-primary btn-sm" style="margin-top:1rem;">Manual Registration</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><p class="card-title">Recent Invoices</p></div>
+        <div class="card-body">
+            {% if not invoices %}
+            <p class="text-sm text-muted">No invoices found.</p>
+            {% else %}
+            <div class="stack gap-2">
+                {% for inv in invoices %}
+                <div style="display:flex; justify-content:space-between; font-size:0.875rem;">
+                    <span class="mono">{{ inv.invoice_number }}</span>
+                    <span class="badge {% if inv.status == 'paid' %}badge-success{% else %}badge-warning{% endif %}">{{ inv.get_status_display }}</span>
+                    <span>{{ inv.amount|naira }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; margin-bottom:1.5rem;">
+    <div class="card">
+        <div class="card-header"><p class="card-title">Documents</p></div>
+        <div class="card-body">
+            {% if not documents %}
+            <p class="text-sm text-muted">No documents uploaded.</p>
+            {% else %}
+            <div class="stack gap-2">
+                {% for doc in documents %}
+                <div style="display:flex; justify-content:space-between; font-size:0.875rem;">
+                    <span>{{ doc.get_document_type_display }}</span>
+                    <span class="badge {% if doc.status == 'verified' %}badge-success{% elif doc.status == 'pending' %}badge-warning{% else %}badge-danger{% endif %}">{{ doc.get_status_display }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><p class="card-title">Queries</p></div>
+        <div class="card-body">
+            {% if not queries %}
+            <p class="text-sm text-muted">No queries on record.</p>
+            {% else %}
+            <div class="stack gap-2">
+                {% for q in queries %}
+                <div style="display:flex; justify-content:space-between; font-size:0.875rem;">
+                    <span>{{ q.subject }}</span>
+                    <span class="badge badge-neutral">{{ q.get_status_display }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><p class="card-title">Academic History</p></div>
+    <div class="card-body" style="padding:0;">
+        {% if not academic_history %}
+        <div style="text-align:center; padding:2rem; color:var(--slate-400);">No grades on record.</div>
+        {% else %}
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Course</th><th>Session</th><th>Grade</th><th>Score</th></tr></thead>
+                <tbody>
+                    {% for g in academic_history %}
+                    <tr>
+                        <td>{{ g.course.code }}</td>
+                        <td>{{ g.session }} ({{ g.semester }})</td>
+                        <td><span class="badge {% if g.grade_letter == 'F' %}badge-danger{% else %}badge-success{% endif %}">{{ g.grade_letter }}</span></td>
+                        <td>{{ g.score }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -89,11 +89,6 @@ def _placeholder_dashboard(request, role, title, url_name):
     })
 
 
-@role_required('desk-officer')
-def dashboard_desk_officer(request):
-    return _placeholder_dashboard(request, 'desk-officer', 'Desk Officer Dashboard', 'portal:dashboard_desk_officer')
-
-
 @role_required('ict', 'super-admin')
 def dashboard_ict(request):
     return _placeholder_dashboard(request, 'ict', 'ICT Dashboard', 'portal:dashboard_ict')

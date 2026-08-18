@@ -1,8 +1,8 @@
 from django.urls import path
 
 from . import (
-    views, views_bursar, views_exam_officer, views_hod, views_lecturer,
-    views_registrar, views_student,
+    views, views_bursar, views_desk_officer, views_exam_officer, views_hod,
+    views_lecturer, views_registrar, views_student,
 )
 
 app_name = 'portal'
@@ -79,8 +79,22 @@ urlpatterns = [
     path('dashboard/exam-officer/results/<int:course_id>/verify/', views_exam_officer.verify_results, name='eo_verify_results'),
     path('dashboard/exam-officer/results/<int:course_id>/master-sheet/', views_exam_officer.master_sheet, name='eo_master_sheet'),
 
+    # --- Desk Officer (Phase 9 -- built as real, working pages; the old
+    #     frontend's desk-officer pages were non-functional placeholders
+    #     -- see services_desk_officer.py) ---
+    path('dashboard/desk-officer/', views_desk_officer.dashboard, name='dashboard_desk_officer'),
+    path('dashboard/desk-officer/students/', views_desk_officer.students, name='do_students'),
+    path('dashboard/desk-officer/students/<int:student_id>/', views_desk_officer.student_profile, name='do_student_profile'),
+    path('dashboard/desk-officer/documents/', views_desk_officer.documents, name='do_documents'),
+    path('dashboard/desk-officer/documents/<int:document_id>/verify/', views_desk_officer.verify_document, name='do_verify_document'),
+    path('dashboard/desk-officer/queries/', views_desk_officer.queries, name='do_queries'),
+    path('dashboard/desk-officer/queries/<int:query_id>/assign/', views_desk_officer.assign_query, name='do_assign_query'),
+    path('dashboard/desk-officer/queries/<int:query_id>/resolve/', views_desk_officer.resolve_query, name='do_resolve_query'),
+    path('dashboard/desk-officer/payments/', views_desk_officer.payments, name='do_payments'),
+    path('dashboard/desk-officer/payments/<int:payment_id>/verify/', views_desk_officer.verify_payment, name='do_verify_payment'),
+    path('dashboard/desk-officer/registration/', views_desk_officer.registration, name='do_registration'),
+
     # --- Other roles (placeholders, migrated in later phases) ---
-    path('dashboard/desk-officer/', views.dashboard_desk_officer, name='dashboard_desk_officer'),
     path('dashboard/ict/', views.dashboard_ict, name='dashboard_ict'),
     path('dashboard/super-admin/', views.dashboard_super_admin, name='dashboard_super_admin'),
 ]
