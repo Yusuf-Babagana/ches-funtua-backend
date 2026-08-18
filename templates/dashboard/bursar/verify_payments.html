@@ -1,0 +1,50 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}Manual Payment Verification{% endblock %}
+{% block page_subtitle %}Approve bank transfers or cash deposits.{% endblock %}
+
+{% block dashboard_content %}
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if not pending %}
+        <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No pending verifications found.</div>
+        {% else %}
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Student</th><th>Reference</th><th>Amount</th><th>Method</th><th style="text-align:right;">Actions</th></tr></thead>
+                <tbody>
+                    {% for pay in pending %}
+                    <tr>
+                        <td>
+                            <p style="font-weight:600;">{{ pay.student.user.full_name }}</p>
+                            <p class="text-xs text-muted mono">{{ pay.student.matric_number }}</p>
+                        </td>
+                        <td class="mono text-xs">{{ pay.reference_id }}</td>
+                        <td style="font-weight:700; color:var(--teal-700);">{{ pay.amount|naira }}</td>
+                        <td><span class="badge badge-neutral">{{ pay.get_payment_method_display }}</span></td>
+                        <td style="text-align:right;">
+                            <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                                <form method="post" action="{% url 'portal:bursar_verify_payment_action' pay.id %}"
+                                      data-confirm="Reject this payment record?">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="reject">
+                                    <button type="submit" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger-border);">Reject</button>
+                                </form>
+                                <form method="post" action="{% url 'portal:bursar_verify_payment_action' pay.id %}"
+                                      data-confirm="Verify this payment? This will update the student's balance.">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="verify">
+                                    <button type="submit" class="btn btn-primary btn-sm">Verify</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

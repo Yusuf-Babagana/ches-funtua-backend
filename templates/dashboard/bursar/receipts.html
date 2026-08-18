@@ -1,0 +1,32 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}Receipt History{% endblock %}
+{% block page_subtitle %}Last 50 issued receipts.{% endblock %}
+
+{% block dashboard_content %}
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if not receipts %}
+        <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No receipts issued yet.</div>
+        {% else %}
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Receipt #</th><th>Student</th><th>Payment Ref</th><th>Amount</th><th>Issued</th></tr></thead>
+                <tbody>
+                    {% for r in receipts %}
+                    <tr>
+                        <td class="mono text-xs">{{ r.receipt_number }}</td>
+                        <td>{{ r.payment.student.user.full_name }}</td>
+                        <td class="mono text-xs">{{ r.payment.reference_id }}</td>
+                        <td style="font-weight:700;">{{ r.payment.amount|naira }}</td>
+                        <td class="text-sm text-muted">{{ r.issued_date|date:"M j, Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}Financial Overview{% endblock %}
+{% block page_subtitle %}Manage student fees, invoices, and revenue performance.{% endblock %}
+
+{% block dashboard_content %}
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--teal-600);">{{ stats.total_revenue|naira }}</div><div class="stat-tile__label">Total Revenue</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ stats.pending_payments }}</div><div class="stat-tile__label">Pending Payments</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--success);">{{ stats.cleared_students }}</div><div class="stat-tile__label">Cleared Students</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:#7c3aed;">{{ stats.total_invoices }}</div><div class="stat-tile__label">Total Invoices</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns: 7fr 5fr;">
+    <div class="card">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <p class="card-title">Recent Transactions</p>
+            <a href="{% url 'portal:bursar_receipts' %}" class="btn btn-outline btn-sm">View All</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            {% if not recent_payments %}
+            <div style="text-align:center; padding:2.5rem; color:var(--slate-400);">No recent transactions found.</div>
+            {% else %}
+            <div class="table-wrap" style="border:none;">
+                <table class="data-table">
+                    <thead><tr><th>Student</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% for pay in recent_payments %}
+                        <tr>
+                            <td>
+                                <p style="font-weight:600;">{{ pay.student.user.full_name }}</p>
+                                <p class="text-xs text-muted mono">{{ pay.reference_id }}</p>
+                            </td>
+                            <td style="font-weight:700;">{{ pay.amount|naira }}</td>
+                            <td class="text-sm">{{ pay.get_payment_method_display }}</td>
+                            <td>
+                                <span class="badge {% if pay.status == 'completed' %}badge-success{% elif pay.status == 'pending' %}badge-warning{% else %}badge-danger{% endif %}">{{ pay.get_status_display }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="stack gap-4">
+        <div class="card">
+            <div class="card-header"><p class="card-title">Quick Actions</p></div>
+            <div class="card-body stack gap-3">
+                <a href="{% url 'portal:bursar_invoices' %}" class="btn btn-outline" style="justify-content:flex-start;">Generate Bulk Invoices</a>
+                <a href="{% url 'portal:bursar_verify_payments' %}" class="btn btn-outline" style="justify-content:flex-start;">Verify Manual Payment</a>
+                <a href="{% url 'portal:bursar_export_revenue' %}" class="btn btn-outline" style="justify-content:flex-start;">Export Revenue Report</a>
+            </div>
+        </div>
+
+        <div class="card" style="background:linear-gradient(135deg, var(--teal-700), var(--teal-900)); border:none; color:#fff;">
+            <div class="card-body">
+                <p style="font-weight:700; font-size:1.1rem; color:#fff;">{{ current_semester.get_semester_display|default:"Unknown" }} Semester</p>
+                <p style="opacity:0.85; font-size:0.875rem; margin-top:0.25rem;">Session: {{ current_semester.session|default:"N/A" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_hod, views_lecturer, views_registrar, views_student
+from . import views, views_bursar, views_hod, views_lecturer, views_registrar, views_student
 
 app_name = 'portal'
 
@@ -56,8 +56,17 @@ urlpatterns = [
     path('dashboard/registrar/publication/<int:course_id>/reject/', views_registrar.reject_results, name='registrar_reject_results'),
     path('dashboard/registrar/transcript/', views_registrar.transcript, name='registrar_transcript'),
 
+    # --- Bursar (Phase 7 -- fully migrated) ---
+    path('dashboard/bursar/', views_bursar.dashboard, name='dashboard_bursar'),
+    path('dashboard/bursar/invoices/', views_bursar.invoices, name='bursar_invoices'),
+    path('dashboard/bursar/invoices/<int:invoice_id>/mark-paid/', views_bursar.mark_invoice_paid, name='bursar_mark_invoice_paid'),
+    path('dashboard/bursar/invoices/<int:invoice_id>/installment/', views_bursar.set_installment, name='bursar_set_installment'),
+    path('dashboard/bursar/payments/verify/', views_bursar.verify_payments, name='bursar_verify_payments'),
+    path('dashboard/bursar/payments/verify/<int:payment_id>/', views_bursar.verify_payment_action, name='bursar_verify_payment_action'),
+    path('dashboard/bursar/receipts/', views_bursar.receipts, name='bursar_receipts'),
+    path('dashboard/bursar/reports/revenue/', views_bursar.export_revenue, name='bursar_export_revenue'),
+
     # --- Other roles (placeholders, migrated in later phases) ---
-    path('dashboard/bursar/', views.dashboard_bursar, name='dashboard_bursar'),
     path('dashboard/desk-officer/', views.dashboard_desk_officer, name='dashboard_desk_officer'),
     path('dashboard/ict/', views.dashboard_ict, name='dashboard_ict'),
     path('dashboard/exam-officer/', views.dashboard_exam_officer, name='dashboard_exam_officer'),

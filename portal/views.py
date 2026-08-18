@@ -89,11 +89,6 @@ def _placeholder_dashboard(request, role, title, url_name):
     })
 
 
-@role_required('bursar')
-def dashboard_bursar(request):
-    return _placeholder_dashboard(request, 'bursar', 'Bursar Dashboard', 'portal:dashboard_bursar')
-
-
 @role_required('desk-officer')
 def dashboard_desk_officer(request):
     return _placeholder_dashboard(request, 'desk-officer', 'Desk Officer Dashboard', 'portal:dashboard_desk_officer')
