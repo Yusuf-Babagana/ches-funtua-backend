@@ -41,6 +41,11 @@ INSTALLED_APPS = [
     'finance',
     'admissions',
     'audit',
+
+    # Django-rendered frontend (session-authenticated templates; replaces
+    # the retired Next.js/Vercel frontend, sits alongside the existing DRF
+    # API which stays available for JWT/mobile/external clients)
+    'portal',
 ]
 
 MIDDLEWARE = [
@@ -102,8 +107,15 @@ USE_TZ = True
 # Static files
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Django-rendered frontend session auth (separate from, and in addition to,
+# the JWT auth used by the DRF API -- see REST_FRAMEWORK above)
+LOGIN_URL = 'portal:login'
+LOGIN_REDIRECT_URL = 'portal:dashboard_root'
+LOGOUT_REDIRECT_URL = 'portal:landing'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

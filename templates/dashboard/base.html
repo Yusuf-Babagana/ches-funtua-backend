@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load portal_extras %}
+
+{% block body_class %}dash-body{% endblock %}
+
+{% block content %}
+<div class="dash">
+    <div class="dash__overlay" id="dash-overlay"></div>
+
+    <aside class="dash__sidebar" id="dash-sidebar">
+        <div class="dash__brand">
+            <div class="dash__brand-mark">CF</div>
+            <div class="dash__brand-text">
+                <strong>FUNTUA</strong>
+                <span>Academic Portal</span>
+            </div>
+        </div>
+
+        <nav class="dash__nav">
+            <div class="dash__nav-label">Menu</div>
+            {% for item in nav_items %}
+            <a href="{% url item.url_name %}" class="dash__nav-link{% if item.is_active %} is-active{% endif %}">
+                {{ item.label }}
+            </a>
+            {% endfor %}
+        </nav>
+
+        <div class="dash__user">
+            <div class="dash__user-row">
+                <div class="dash__avatar">{{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}</div>
+                <div style="min-width:0;">
+                    <p class="dash__user-name">{{ request.user.full_name|default:request.user.email }}</p>
+                    <p class="dash__user-role">{{ request.user.role|role_label }}</p>
+                </div>
+            </div>
+            <form method="post" action="{% url 'portal:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline btn-block btn-sm">Sign Out</button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="dash__main">
+        <div class="dash__topbar">
+            <div class="dash__brand" style="border:none;padding:0;height:auto;">
+                <div class="dash__brand-mark" style="height:1.9rem;width:1.9rem;font-size:0.7rem;">CF</div>
+                <strong>Funtua</strong>
+            </div>
+            <button type="button" class="dash__menu-btn" data-sidebar-toggle aria-label="Open menu">&#9776;</button>
+        </div>
+
+        <div class="dash__content">
+            <div class="dash__page-header">
+                <h1>{% block page_title %}{{ page_title }}{% endblock %}</h1>
+                <p>{% block page_subtitle %}Manage your academic activities and records.{% endblock %}</p>
+            </div>
+
+            {% block dashboard_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

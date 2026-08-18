@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Access denied{% endblock %}
+{% block content %}
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1.5rem; background:var(--slate-50);">
+    <div class="card" style="max-width:28rem; text-align:center;">
+        <div class="card-body" style="padding:3rem 2rem;">
+            <div style="font-size:2.5rem; font-weight:800; color:var(--danger); margin-bottom:0.5rem;">403</div>
+            <h2 style="font-size:1.15rem; color:var(--slate-900); margin-bottom:0.5rem;">Access denied</h2>
+            <p class="text-muted text-sm">You don't have permission to view this page with your current account role.</p>
+            <div style="margin-top:1.75rem; display:flex; gap:0.75rem; justify-content:center;">
+                <a href="{% url 'portal:dashboard_root' %}" class="btn btn-primary">Go to my dashboard</a>
+                <a href="{% url 'portal:landing' %}" class="btn btn-outline">Home</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
