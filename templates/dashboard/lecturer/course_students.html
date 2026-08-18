@@ -1,0 +1,50 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Enrolled Students{% endblock %}
+{% block page_subtitle %}{{ course.code }} &middot; {{ course.title }}{% endblock %}
+
+{% block dashboard_content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+    <span class="badge badge-info">{{ roster|length }} Students</span>
+    <a href="{% url 'portal:lecturer_gradebook' course.id %}" class="btn btn-primary">Manage Grades</a>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if not roster %}
+        <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No students registered for this course yet.</div>
+        {% else %}
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th style="width:3rem;">S/N</th><th>Student</th><th>Matric Number</th><th>Level</th><th>Department</th><th style="text-align:right;">Attendance</th></tr></thead>
+                <tbody>
+                    {% for row in roster %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:0.6rem;">
+                                <div style="height:2rem; width:2rem; border-radius:999px; background:var(--teal-50); border:1px solid var(--teal-100); display:flex; align-items:center; justify-content:center; color:var(--teal-700); font-weight:700; font-size:0.7rem;">
+                                    {{ row.student.user.first_name|slice:":1" }}{{ row.student.user.last_name|slice:":1" }}
+                                </div>
+                                <span style="font-weight:600;">{{ row.student.user.full_name }}</span>
+                            </div>
+                        </td>
+                        <td class="mono">{{ row.student.matric_number }}</td>
+                        <td>{{ row.student.level }}</td>
+                        <td>{{ row.student.department.name|default:"N/A" }}</td>
+                        <td style="text-align:right;">
+                            {% if row.attendance_percent is not None %}
+                            <span class="badge {% if row.attendance_percent >= 75 %}badge-success{% else %}badge-danger{% endif %}">{{ row.attendance_percent }}%</span>
+                            {% else %}
+                            <span class="text-xs text-muted">No records</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

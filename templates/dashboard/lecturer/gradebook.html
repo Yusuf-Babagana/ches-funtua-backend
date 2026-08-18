@@ -1,0 +1,77 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Gradebook{% endblock %}
+{% block page_subtitle %}{{ course.code }} &middot; {{ course.title }} &middot; CA max {{ max_ca }}, Exam max {{ max_exam }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gb-input { width:4.5rem; text-align:center; padding:0.4rem; border:1px solid var(--slate-200); border-radius:var(--radius-sm); font-family:ui-monospace,monospace; }
+    .gb-input:disabled { background:var(--slate-50); color:var(--slate-400); }
+    .gb-row.is-locked { background:var(--slate-50); }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<form method="post" id="gradebook-form">
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body" style="padding:0;">
+            {% if not roster %}
+            <div style="text-align:center; padding:3.5rem 1.5rem; color:var(--slate-400);">No students registered for this course yet.</div>
+            {% else %}
+            <div class="table-wrap" style="border:none;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th style="text-align:center; width:6rem;">C.A <span class="text-xs text-muted" style="display:block; font-weight:400;">/ {{ max_ca }}</span></th>
+                            <th style="text-align:center; width:6rem;">Exam <span class="text-xs text-muted" style="display:block; font-weight:400;">/ {{ max_exam }}</span></th>
+                            <th style="text-align:center; width:5rem;">Total</th>
+                            <th style="text-align:center; width:5rem;">Grade</th>
+                            <th style="text-align:right;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in roster %}
+                        <tr class="gb-row {% if row.is_locked %}is-locked{% endif %}">
+                            <td>
+                                <div style="font-weight:600;">{{ row.student.user.full_name }}</div>
+                                <div class="text-xs text-muted mono">{{ row.student.matric_number }}{% if row.is_locked %} &middot; locked{% endif %}</div>
+                            </td>
+                            <td style="text-align:center;">
+                                <input type="number" min="0" max="{{ max_ca }}" step="1" class="gb-input" name="ca_{{ row.student.id }}"
+                                       value="{{ row.grade.ca_score|default_if_none:'' }}" placeholder="-" {% if row.is_locked %}disabled{% endif %}>
+                            </td>
+                            <td style="text-align:center;">
+                                <input type="number" min="0" max="{{ max_exam }}" step="1" class="gb-input" name="exam_{{ row.student.id }}"
+                                       value="{{ row.grade.exam_score|default_if_none:'' }}" placeholder="-" {% if row.is_locked %}disabled{% endif %}>
+                            </td>
+                            <td style="text-align:center; font-weight:700;">{{ row.grade.score|default:"-" }}</td>
+                            <td style="text-align:center;">
+                                {% if row.grade %}<span class="badge {% if row.grade.grade_letter == 'F' %}badge-danger{% elif row.grade.grade_letter == 'A' %}badge-success{% else %}badge-neutral{% endif %}">{{ row.grade.grade_letter }}</span>{% else %}&mdash;{% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                {% if row.grade %}
+                                <span class="badge {% if row.grade.status == 'published' %}badge-success{% elif row.grade.status == 'submitted' %}badge-info{% elif row.grade.status == 'draft' %}badge-warning{% else %}badge-neutral{% endif %}">{{ row.grade.get_status_display }}</span>
+                                {% else %}
+                                <span class="badge badge-neutral">New</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="padding:1rem 1.25rem; border-top:1px solid var(--slate-100); display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button type="submit" name="action" value="draft" class="btn btn-outline">Save Draft</button>
+                <button type="submit" name="action" value="submit" class="btn btn-primary"
+                        data-confirm="Submit these grades to the HOD for approval? You won't be able to edit them until they're rejected back.">
+                    Submit to HOD
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}

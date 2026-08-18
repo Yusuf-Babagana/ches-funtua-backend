@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_student
+from . import views, views_lecturer, views_student
 
 app_name = 'portal'
 
@@ -27,8 +27,15 @@ urlpatterns = [
     path('dashboard/student/print-schedule/', views_student.print_schedule, name='student_print_schedule'),
     path('dashboard/student/settings/', views_student.settings_view, name='student_settings'),
 
+    # --- Lecturer (Phase 4 -- fully migrated) ---
+    path('dashboard/lecturer/', views_lecturer.dashboard, name='dashboard_lecturer'),
+    path('dashboard/lecturer/courses/', views_lecturer.courses, name='lecturer_courses'),
+    path('dashboard/lecturer/courses/<int:course_id>/', views_lecturer.gradebook, name='lecturer_gradebook'),
+    path('dashboard/lecturer/courses/<int:course_id>/students/', views_lecturer.course_students, name='lecturer_course_students'),
+    path('dashboard/lecturer/attendance/', views_lecturer.attendance, name='lecturer_attendance'),
+    path('dashboard/lecturer/attendance/<int:course_id>/mark/', views_lecturer.mark_attendance, name='lecturer_mark_attendance'),
+
     # --- Other roles (placeholders, migrated in later phases) ---
-    path('dashboard/lecturer/', views.dashboard_lecturer, name='dashboard_lecturer'),
     path('dashboard/hod/', views.dashboard_hod, name='dashboard_hod'),
     path('dashboard/registrar/', views.dashboard_registrar, name='dashboard_registrar'),
     path('dashboard/bursar/', views.dashboard_bursar, name='dashboard_bursar'),
