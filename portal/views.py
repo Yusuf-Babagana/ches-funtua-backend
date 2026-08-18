@@ -89,11 +89,6 @@ def _placeholder_dashboard(request, role, title, url_name):
     })
 
 
-@role_required('hod')
-def dashboard_hod(request):
-    return _placeholder_dashboard(request, 'hod', 'HOD Dashboard', 'portal:dashboard_hod')
-
-
 @role_required('registrar')
 def dashboard_registrar(request):
     return _placeholder_dashboard(request, 'registrar', 'Registrar Dashboard', 'portal:dashboard_registrar')

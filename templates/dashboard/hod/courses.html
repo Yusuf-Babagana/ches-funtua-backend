@@ -1,0 +1,68 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Course Allocation{% endblock %}
+{% block page_subtitle %}Assign lecturers to courses in {{ department.name }} for the current session.{% endblock %}
+
+{% block dashboard_content %}
+<form method="get" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem;">
+    <input type="text" name="search" placeholder="Search by course code or title..." value="{{ filters.search }}"
+           style="flex:1; min-width:14rem; padding:0.6rem 0.85rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+    <select name="level" onchange="this.form.submit()" style="padding:0.6rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+        <option value="">All Levels</option>
+        <option value="100" {% if filters.level == "100" %}selected{% endif %}>100 Level</option>
+        <option value="200" {% if filters.level == "200" %}selected{% endif %}>200 Level</option>
+        <option value="300" {% if filters.level == "300" %}selected{% endif %}>300 Level</option>
+    </select>
+    <select name="has_lecturer" onchange="this.form.submit()" style="padding:0.6rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+        <option value="">All Status</option>
+        <option value="false" {% if filters.has_lecturer == "false" %}selected{% endif %}>Unassigned Only</option>
+        <option value="true" {% if filters.has_lecturer == "true" %}selected{% endif %}>Assigned Only</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Filter</button>
+</form>
+
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if not courses %}
+        <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No courses found matching your filters.</div>
+        {% else %}
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Code</th><th>Course Title</th><th>Level</th><th>Units</th><th style="width:20rem;">Assigned Lecturer</th><th style="text-align:right;">Status</th></tr></thead>
+                <tbody>
+                    {% for course in courses %}
+                    <tr>
+                        <td style="font-weight:700;">{{ course.code }}</td>
+                        <td>
+                            <div style="font-weight:600;">{{ course.title }}</div>
+                            <div class="text-xs text-muted">{{ course.get_semester_display }}</div>
+                        </td>
+                        <td><span class="badge badge-neutral">{{ course.level }}</span></td>
+                        <td>{{ course.credits }}</td>
+                        <td>
+                            <form method="post" action="{% url 'portal:hod_assign_lecturer' course.id %}" style="display:flex; gap:0.5rem;">
+                                {% csrf_token %}
+                                <select name="lecturer_id" onchange="this.form.submit()" style="flex:1; padding:0.5rem; border:1px solid var(--slate-200); border-radius:var(--radius-sm);">
+                                    <option value="unassigned">&#128683; Unassigned</option>
+                                    {% for lect in available_lecturers %}
+                                    <option value="{{ lect.id }}" {% if course.lecturer_id == lect.id %}selected{% endif %}>{{ lect.user.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </td>
+                        <td style="text-align:right;">
+                            {% if course.lecturer %}
+                            <span class="badge badge-success">Assigned</span>
+                            {% else %}
+                            <span class="badge badge-danger">Required</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

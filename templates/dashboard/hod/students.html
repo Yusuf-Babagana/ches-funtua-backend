@@ -1,0 +1,62 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Student Directory{% endblock %}
+{% block page_subtitle %}{{ department.name }} &middot; {{ students|length }} students{% endblock %}
+
+{% block dashboard_content %}
+<form method="get" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem;">
+    <input type="text" name="search" placeholder="Search name, matric, email..." value="{{ filters.search }}"
+           style="flex:1; min-width:14rem; padding:0.6rem 0.85rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+    <select name="level" onchange="this.form.submit()" style="padding:0.6rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+        <option value="">All Levels</option>
+        <option value="100" {% if filters.level == "100" %}selected{% endif %}>100 Level</option>
+        <option value="200" {% if filters.level == "200" %}selected{% endif %}>200 Level</option>
+        <option value="300" {% if filters.level == "300" %}selected{% endif %}>300 Level</option>
+    </select>
+    <select name="status" onchange="this.form.submit()" style="padding:0.6rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+        <option value="">All Status</option>
+        <option value="active" {% if filters.status == "active" %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if filters.status == "inactive" %}selected{% endif %}>Inactive</option>
+        <option value="graduated" {% if filters.status == "graduated" %}selected{% endif %}>Graduated</option>
+        <option value="suspended" {% if filters.status == "suspended" %}selected{% endif %}>Suspended</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Filter</button>
+</form>
+
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if not students %}
+        <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No students found matching your criteria.</div>
+        {% else %}
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Student</th><th>Matric No.</th><th>Level</th><th>Status</th><th>Contact</th></tr></thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:0.6rem;">
+                                <div style="height:2rem; width:2rem; border-radius:999px; background:var(--slate-100); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.7rem;">
+                                    {{ student.user.first_name|slice:":1" }}{{ student.user.last_name|slice:":1" }}
+                                </div>
+                                <div>
+                                    <p style="font-weight:600;">{{ student.user.full_name }}</p>
+                                    <p class="text-xs text-muted">{{ student.user.email }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="mono">{{ student.matric_number }}</td>
+                        <td><span class="badge badge-neutral">L{{ student.level }}</span></td>
+                        <td>
+                            <span class="badge {% if student.status == 'active' %}badge-success{% elif student.status == 'suspended' %}badge-danger{% elif student.status == 'graduated' %}badge-info{% else %}badge-neutral{% endif %}">{{ student.get_status_display }}</span>
+                        </td>
+                        <td class="text-sm text-muted">{{ student.user.phone|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

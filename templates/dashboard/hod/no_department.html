@@ -1,0 +1,14 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}HOD Dashboard{% endblock %}
+{% block page_subtitle %}{% endblock %}
+
+{% block dashboard_content %}
+<div class="card" style="max-width:32rem; margin:2rem auto; text-align:center;">
+    <div class="card-body" style="padding:3rem 2rem;">
+        <h3 class="card-title" style="color:var(--warning);">No department assigned</h3>
+        <p class="card-description" style="margin-top:0.5rem;">{{ reason }}</p>
+        <p class="text-sm text-muted" style="margin-top:1rem;">Contact ICT or Super Admin to have your department assignment corrected.</p>
+    </div>
+</div>
+{% endblock %}

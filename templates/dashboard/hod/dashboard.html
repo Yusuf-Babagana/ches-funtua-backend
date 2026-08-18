@@ -1,0 +1,113 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}{{ department.name }}{% endblock %}
+{% block page_subtitle %}Department overview and quick actions.{% endblock %}
+
+{% block dashboard_content %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-body" style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem; align-items:center;">
+        <div style="display:flex; align-items:center; gap:1rem;">
+            <div style="height:3.5rem; width:3.5rem; border-radius:var(--radius); background:var(--teal-50); border:1px solid var(--teal-100); display:flex; align-items:center; justify-content:center; color:var(--teal-700); font-weight:800;">
+                {{ department.code }}
+            </div>
+            <div>
+                <h2 style="font-size:1.3rem;">{{ department.name }}</h2>
+                <div class="text-sm text-muted" style="display:flex; gap:0.5rem; align-items:center; margin-top:0.3rem;">
+                    <span class="badge badge-info">Code: {{ department.code }}</span>
+                    <span>HOD: {{ department.hod.user.full_name|default:"You" }}</span>
+                </div>
+            </div>
+        </div>
+        <div style="text-align:right;">
+            <p class="text-xs text-muted" style="text-transform:uppercase; font-weight:700;">Session</p>
+            <p style="font-weight:700;">{{ current_semester.session|default:"N/A" }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--success);">{{ stats.students }}</div><div class="stat-tile__label">Total Students</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--teal-600);">{{ stats.lecturers }}</div><div class="stat-tile__label">Faculty Staff</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:#6366f1;">{{ stats.courses }}</div><div class="stat-tile__label">Active Courses</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ stats.courses_without_lecturers }}</div><div class="stat-tile__label">Unassigned Courses</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns: 7fr 5fr;">
+    <div class="stack gap-4">
+        <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <p class="card-title">Course Assignments</p>
+                <a href="{% url 'portal:hod_courses' %}" class="btn btn-outline btn-sm">Manage Courses</a>
+            </div>
+            <div class="card-body">
+                {% if not courses_summary %}
+                <div style="text-align:center; padding:2rem; color:var(--slate-400);">No courses active this semester.</div>
+                {% else %}
+                <div class="stack gap-2">
+                    {% for course in courses_summary %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; border:1px solid var(--slate-100); border-radius:var(--radius);">
+                        <div>
+                            <p style="font-weight:600; font-size:0.9rem;">{{ course.code }} &mdash; {{ course.title }}</p>
+                            <p class="text-xs text-muted">{{ course.credits }} Units &middot; {{ course.level }} Level</p>
+                        </div>
+                        {% if course.lecturer %}
+                        <span class="badge badge-success">{{ course.lecturer.user.full_name }}</span>
+                        {% else %}
+                        <span class="badge badge-danger">Unassigned</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <p class="card-title">Recent Students</p>
+                <a href="{% url 'portal:hod_students' %}" class="btn btn-outline btn-sm">View All</a>
+            </div>
+            <div class="card-body">
+                {% if not recent_students %}
+                <div style="text-align:center; padding:2rem; color:var(--slate-400);">No recent students found.</div>
+                {% else %}
+                <div class="stack gap-2">
+                    {% for student in recent_students %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.25rem;">
+                        <div style="display:flex; align-items:center; gap:0.6rem;">
+                            <div style="height:2rem; width:2rem; border-radius:999px; background:var(--slate-100); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.7rem;">
+                                {{ student.user.first_name|slice:":1" }}{{ student.user.last_name|slice:":1" }}
+                            </div>
+                            <div>
+                                <p style="font-weight:600; font-size:0.9rem;">{{ student.user.full_name }}</p>
+                                <p class="text-xs text-muted mono">{{ student.matric_number }}</p>
+                            </div>
+                        </div>
+                        <span class="badge badge-neutral">{{ student.level }} Level</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="stack gap-4">
+        <div class="card">
+            <div class="card-header"><p class="card-title">Quick Actions</p></div>
+            <div class="card-body stack gap-3">
+                <a href="{% url 'portal:hod_approvals' %}" class="btn btn-outline" style="justify-content:flex-start;">Approve Results</a>
+                <a href="{% url 'portal:hod_courses' %}" class="btn btn-outline" style="justify-content:flex-start;">Assign Courses</a>
+                <a href="{% url 'portal:hod_students' %}" class="btn btn-outline" style="justify-content:flex-start;">Student Directory</a>
+            </div>
+        </div>
+
+        <div class="card" style="background:linear-gradient(135deg, var(--teal-700), var(--teal-900)); border:none; color:#fff;">
+            <div class="card-body">
+                <p style="font-weight:700; font-size:1.1rem; color:#fff;">{{ current_semester.get_semester_display|default:"Unknown" }} Semester</p>
+                <p style="opacity:0.85; font-size:0.875rem; margin-top:0.25rem;">Session: {{ current_semester.session|default:"N/A" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
