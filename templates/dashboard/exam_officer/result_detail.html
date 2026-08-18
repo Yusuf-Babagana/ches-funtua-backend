@@ -1,0 +1,58 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Review: {{ course.code }}{% endblock %}
+{% block page_subtitle %}{{ course.title }}{% endblock %}
+
+{% block dashboard_content %}
+<a href="{% url 'portal:eo_results' %}" class="btn btn-outline btn-sm" style="margin-bottom:1.25rem;">&larr; Back to Result Compilation</a>
+
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value">{{ statistics.total_students }}</div><div class="stat-tile__label">Total Students</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--info);">{{ statistics.average_score }}</div><div class="stat-tile__label">Average Score</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--success);">{{ statistics.highest_score }}</div><div class="stat-tile__label">Highest Score</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--danger);">{{ statistics.lowest_score }}</div><div class="stat-tile__label">Lowest Score</div></div>
+</div>
+
+{% if anomalies %}
+<div class="alert alert-warning" style="margin-bottom:1.25rem;">
+    <strong>{{ anomalies|length }} score(s) flagged for review</strong> &mdash; borderline (59/69/79/89) or extreme scores detected. Verifying will proceed regardless; review first if unsure.
+</div>
+{% endif %}
+
+{% if not can_verify %}
+<div class="alert alert-info" style="margin-bottom:1.25rem;">
+    No HOD-approved grades yet for this course &mdash; nothing here is ready to verify until the HOD approves the lecturer's submission.
+</div>
+{% endif %}
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Matric No.</th><th>Student</th><th style="text-align:center;">Score</th><th style="text-align:center;">Grade</th><th>Status</th><th>Remarks</th></tr></thead>
+                <tbody>
+                    {% for g in grades %}
+                    <tr style="{% if g.needs_review %}background:var(--warning-bg);{% endif %}">
+                        <td class="mono text-xs">{{ g.student.matric_number }}</td>
+                        <td>{{ g.student.user.full_name }}</td>
+                        <td style="text-align:center; font-weight:700;">{{ g.score }}</td>
+                        <td style="text-align:center;"><span class="badge {% if g.grade_letter == 'F' %}badge-danger{% else %}badge-success{% endif %}">{{ g.grade_letter }}</span></td>
+                        <td><span class="badge badge-neutral">{{ g.get_status_display }}</span></td>
+                        <td class="text-xs text-muted">{% if g.needs_review %}<span style="color:var(--warning); font-weight:600;">Needs review</span>{% else %}Satisfactory{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div style="display:flex; justify-content:flex-end; gap:0.75rem;">
+    <a href="{% url 'portal:eo_master_sheet' course.id %}" class="btn btn-outline">Export Master Sheet</a>
+    <form method="post" action="{% url 'portal:eo_verify_results' course.id %}"
+          data-confirm="Verify {{ hod_approved_count }} HOD-approved grade(s) for {{ course.code }}? This forwards them to the Registrar for publication.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary" {% if not can_verify %}disabled{% endif %}>Verify HOD-Approved Grades{% if hod_approved_count %} ({{ hod_approved_count }}){% endif %}</button>
+    </form>
+</div>
+{% endblock %}

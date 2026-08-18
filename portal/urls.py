@@ -1,6 +1,9 @@
 from django.urls import path
 
-from . import views, views_bursar, views_hod, views_lecturer, views_registrar, views_student
+from . import (
+    views, views_bursar, views_exam_officer, views_hod, views_lecturer,
+    views_registrar, views_student,
+)
 
 app_name = 'portal'
 
@@ -66,9 +69,18 @@ urlpatterns = [
     path('dashboard/bursar/receipts/', views_bursar.receipts, name='bursar_receipts'),
     path('dashboard/bursar/reports/revenue/', views_bursar.export_revenue, name='bursar_export_revenue'),
 
+    # --- Exam Officer (Phase 8 -- fully migrated, minus the fake/non
+    #     -persistent timetable feature -- see services_exam_officer.py) ---
+    path('dashboard/exam-officer/', views_exam_officer.dashboard, name='dashboard_exam_officer'),
+    path('dashboard/exam-officer/registrations/', views_exam_officer.registrations, name='eo_registrations'),
+    path('dashboard/exam-officer/registrations/<int:registration_id>/approve/', views_exam_officer.approve_registration, name='eo_approve_registration'),
+    path('dashboard/exam-officer/results/', views_exam_officer.results, name='eo_results'),
+    path('dashboard/exam-officer/results/<int:course_id>/', views_exam_officer.result_detail, name='eo_result_detail'),
+    path('dashboard/exam-officer/results/<int:course_id>/verify/', views_exam_officer.verify_results, name='eo_verify_results'),
+    path('dashboard/exam-officer/results/<int:course_id>/master-sheet/', views_exam_officer.master_sheet, name='eo_master_sheet'),
+
     # --- Other roles (placeholders, migrated in later phases) ---
     path('dashboard/desk-officer/', views.dashboard_desk_officer, name='dashboard_desk_officer'),
     path('dashboard/ict/', views.dashboard_ict, name='dashboard_ict'),
-    path('dashboard/exam-officer/', views.dashboard_exam_officer, name='dashboard_exam_officer'),
     path('dashboard/super-admin/', views.dashboard_super_admin, name='dashboard_super_admin'),
 ]

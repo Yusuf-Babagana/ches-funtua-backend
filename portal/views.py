@@ -99,11 +99,6 @@ def dashboard_ict(request):
     return _placeholder_dashboard(request, 'ict', 'ICT Dashboard', 'portal:dashboard_ict')
 
 
-@role_required('exam-officer')
-def dashboard_exam_officer(request):
-    return _placeholder_dashboard(request, 'exam-officer', 'Exam Officer Dashboard', 'portal:dashboard_exam_officer')
-
-
 @role_required('super-admin')
 def dashboard_super_admin(request):
     return _placeholder_dashboard(request, 'super-admin', 'Super Admin Dashboard', 'portal:dashboard_super_admin')
