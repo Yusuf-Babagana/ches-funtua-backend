@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from academics.constants import MAX_CREDIT_UNITS_PAID
 from academics.models import Department
 from users.models import Student
 
@@ -194,5 +195,5 @@ def registration(request):
         'search_results': search_results,
         'offerings': offerings,
         'issues': issues,
-        'max_courses': svc.MAX_MANUAL_COURSES,
+        'max_credit_units': MAX_CREDIT_UNITS_PAID,
     })

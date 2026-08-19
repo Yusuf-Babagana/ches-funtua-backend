@@ -93,7 +93,7 @@
                 <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div>
                         <p class="card-title">Course Registration</p>
-                        <p class="card-description">{{ reg_status.registered_courses }} of {{ reg_status.max_courses }} slots used this semester</p>
+                        <p class="card-description">{{ reg_status.total_credit_units }} of {{ reg_status.max_credit_units }} credit units used this semester</p>
                     </div>
                     <span class="badge {% if reg_status.can_register %}badge-success{% else %}badge-neutral{% endif %}">
                         {% if reg_status.can_register %}Open{% else %}Closed{% endif %}
@@ -102,8 +102,8 @@
                 <div class="card-body">
                     {% if not reg_status.has_paid_fees %}
                     <p class="text-sm text-muted" style="margin-bottom:0.85rem;">
-                        Fees unpaid: you can still register up to <strong>2 free courses</strong> this semester
-                        ({{ reg_status.remaining_free_courses }} remaining) while you complete payment.
+                        Fees unpaid: you can still register up to <strong>{{ reg_status.max_credit_units }} credit units</strong> this semester
+                        ({{ reg_status.remaining_free_units }} remaining) while you complete payment.
                     </p>
                     {% endif %}
                     <a href="{% url 'portal:student_registration' %}" class="btn btn-primary">

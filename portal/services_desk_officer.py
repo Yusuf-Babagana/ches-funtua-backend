@@ -20,18 +20,18 @@ the real, working feature the backend already fully implements, not the
 broken placeholder -- every page in this phase is a genuine, working
 implementation rather than a reproduction of empty UI shells.
 
-Third distinct max-courses constant, preserved as-is (see migration
-inventory §6.1): the student self-service path allows 2 courses unpaid /
-15 paid (Phase 3); the desk officer's manual override below caps at 6
-regardless of payment status. Not unified here -- that requires a real
-product decision (e.g. a SystemSettings model) outside a template
-migration's scope without explicit sign-off, so the existing constant
-is ported exactly rather than silently picking one of the three values
-already in play.
+Manual registration override now shares the same credit-unit ceiling as
+the student self-service path and the DRF API (see academics/constants.py)
+instead of its own flat 6-course cap -- that three-way inconsistency (2
+unpaid / 15 paid self-service vs. 6 desk-officer, see migration inventory
+S6.1) is exactly what the credit-unit rule change replaces. Since the
+desk officer's override path can bypass the payment gate, it enforces
+the higher (paid) ceiling regardless of override_payment.
 """
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
+from academics.constants import MAX_CREDIT_UNITS_PAID
 from academics.models import (
     Course, CourseOffering, CourseRegistration, Department, Grade,
     Semester, StudentDocument, StudentQuery,
@@ -39,7 +39,6 @@ from academics.models import (
 from finance.models import Invoice, Payment
 from users.models import Student
 
-MAX_MANUAL_COURSES = 6
 REQUIRED_DOCS_FOR_REGISTRATION = ['o_level', 'jamb_result', 'medical_report']
 
 
@@ -334,11 +333,11 @@ def check_registration_eligibility(student, semester, override_payment=False):
         elif invoice.status != 'paid':
             issues.append(f'Fees not paid (status: {invoice.get_status_display()}).')
 
-    current_count = CourseRegistration.objects.filter(
+    current_credit_units = CourseRegistration.objects.filter(
         student=student, course_offering__semester=semester, status='registered',
-    ).count()
-    if current_count >= MAX_MANUAL_COURSES:
-        issues.append(f'Already registered for {current_count} courses (max: {MAX_MANUAL_COURSES}).')
+    ).aggregate(total=Sum('course_offering__course__credits'))['total'] or 0
+    if current_credit_units >= MAX_CREDIT_UNITS_PAID:
+        issues.append(f'Already registered for {current_credit_units} credit units (max: {MAX_CREDIT_UNITS_PAID}).')
 
     for doc_type in REQUIRED_DOCS_FOR_REGISTRATION:
         if not StudentDocument.objects.filter(student=student, document_type=doc_type, status='verified').exists():
@@ -370,6 +369,10 @@ def manual_registration(student_id, course_offering_ids, officer, override_payme
     if issues and not override_payment:
         return None, issues
 
+    running_credit_units = CourseRegistration.objects.filter(
+        student=student, course_offering__semester=semester, status='registered',
+    ).aggregate(total=Sum('course_offering__course__credits'))['total'] or 0
+
     successful, errors = [], []
     from django.db import transaction
     with transaction.atomic():
@@ -389,6 +392,9 @@ def manual_registration(student_id, course_offering_ids, officer, override_payme
             if not _check_prerequisites(student, offering.course):
                 errors.append(f'{offering.course.code}: prerequisites not met.')
                 continue
+            if running_credit_units + offering.course.credits > MAX_CREDIT_UNITS_PAID:
+                errors.append(f'{offering.course.code}: would exceed the {MAX_CREDIT_UNITS_PAID}-credit-unit limit.')
+                continue
 
             reg = CourseRegistration.objects.create(
                 student=student, course_offering=offering, status='registered',
@@ -397,6 +403,7 @@ def manual_registration(student_id, course_offering_ids, officer, override_payme
             )
             offering.enrolled_count += 1
             offering.save()
+            running_credit_units += offering.course.credits
             successful.append(reg)
 
     return successful, errors

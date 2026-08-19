@@ -16,11 +16,19 @@ the actual register_courses()/drop_course() actions use the global
 RegistrationViewSet's behavior. This mirrors exactly what the live system
 does today (see college_cms_migration_inventory.md §6.1) -- not something
 introduced by this migration.
+
+Registration cap: as of the CHESF Student Portal Digest feature work,
+this is a real credit-UNIT ceiling (academics/constants.py), not a
+course count -- replaces the old 2-unpaid/15-paid numbers here and in
+the underlying DRF views (academics/views_student.py,
+views_registration.py) in the same pass, so both layers enforce the
+same rule.
 """
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Sum
 from django.utils import timezone
 
+from academics.constants import MAX_CREDIT_UNITS_PAID, MAX_CREDIT_UNITS_UNPAID
 from academics.models import (
     AcademicLevelConfiguration, Course, CourseOffering, CourseRegistration,
     Grade, Semester,
@@ -89,7 +97,12 @@ def get_registration_status(student):
         has_paid_fees = True
 
     current_reg_count = registrations.count() + pending_registrations.count()
-    can_register_by_limit = (current_reg_count < 15) if has_paid_fees else (current_reg_count < 2)
+    total_credit_units = (registrations | pending_registrations).aggregate(
+        total=Sum('course_offering__course__credits')
+    )['total'] or 0
+
+    max_units = MAX_CREDIT_UNITS_PAID if has_paid_fees else MAX_CREDIT_UNITS_UNPAID
+    can_register_by_limit = total_credit_units < max_units
     can_register = can_register_by_limit and is_reg_open_for_level
 
     return {
@@ -99,8 +112,9 @@ def get_registration_status(student):
         'has_paid_fees': has_paid_fees,
         'can_register': can_register,
         'registered_courses': current_reg_count,
-        'max_courses': 15 if has_paid_fees else 2,
-        'remaining_free_courses': max(0, 2 - current_reg_count) if not has_paid_fees else None,
+        'total_credit_units': total_credit_units,
+        'max_credit_units': max_units,
+        'remaining_free_units': max(0, max_units - total_credit_units),
         'invoice': invoice,
     }
 
@@ -197,10 +211,11 @@ def get_available_offerings(student):
 @transaction.atomic
 def register_courses(student, offering_ids):
     """
-    Mirrors RegistrationViewSet.register_courses exactly: global current
+    Mirrors RegistrationViewSet.register_courses: global current
     semester, instant 'registered' status (self-service path, bypasses the
     lecturer/exam-officer approval chain used elsewhere in the system --
-    see college_cms_migration_inventory.md §3.1), 2-course-unpaid exception.
+    see college_cms_migration_inventory.md §3.1). Registration ceiling is
+    a credit-unit cap (academics/constants.py), not a course count.
 
     Returns (successful_ids, errors).
     """
@@ -208,19 +223,28 @@ def register_courses(student, offering_ids):
     if not current_semester:
         return [], ['No active semester found.']
 
-    existing_reg_count = CourseRegistration.objects.filter(
+    offering_ids = list({int(x) for x in offering_ids})
+
+    existing_credit_units = CourseRegistration.objects.filter(
         student=student,
         course_offering__semester=current_semester,
-    ).exclude(status='dropped').count()
+    ).exclude(status='dropped').aggregate(
+        total=Sum('course_offering__course__credits')
+    )['total'] or 0
+
+    new_credit_units = CourseOffering.objects.filter(
+        id__in=offering_ids
+    ).aggregate(total=Sum('course__credits'))['total'] or 0
 
     has_paid = Invoice.objects.filter(
         student=student, session=current_semester.session, status='paid',
     ).exists()
 
-    if not has_paid and (existing_reg_count + len(offering_ids) > 2):
-        return [], ['Tuition fees must be paid before registering more than 2 courses.']
+    max_units = MAX_CREDIT_UNITS_PAID if has_paid else MAX_CREDIT_UNITS_UNPAID
 
-    offering_ids = list({int(x) for x in offering_ids})
+    if existing_credit_units + new_credit_units > max_units:
+        return [], [f'Registering these courses would exceed your {max_units}-credit-unit limit for this semester.']
+
     successful, errors = [], []
 
     for off_id in offering_ids:

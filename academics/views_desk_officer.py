@@ -21,6 +21,7 @@ from academics.models import (
 )
 from users.models import User, Student
 from finance.models import Invoice, Payment, FeeStructure
+from .constants import MAX_CREDIT_UNITS_PAID
 from users.permissions import IsDeskOfficer, CanOverrideRegistration, CanVerifyDocuments
 
 
@@ -927,14 +928,23 @@ class ManualRegistrationOverrideViewSet(viewsets.ViewSet):
         
         registrations = []
         errors = []
-        
+
+        # Running credit-unit total for this batch (existing registrations
+        # + whatever's been added so far in this loop) -- a batch that
+        # individually looks fine offering-by-offering can still blow past
+        # the ceiling in aggregate, so this is checked per item, not just
+        # once up front.
+        running_credit_units = CourseRegistration.objects.filter(
+            student=student, course_offering__semester=current_semester, status='registered',
+        ).aggregate(total=Sum('course_offering__course__credits'))['total'] or 0
+
         for course_offering_id in course_offering_ids:
             try:
                 course_offering = CourseOffering.objects.get(
                     id=course_offering_id,
                     semester=current_semester
                 )
-                
+
                 # Check if already registered
                 # ✅ FIXED: Used CourseRegistration
                 if CourseRegistration.objects.filter(
@@ -943,17 +953,22 @@ class ManualRegistrationOverrideViewSet(viewsets.ViewSet):
                 ).exists():
                     errors.append(f"Already registered for {course_offering.course.code}")
                     continue
-                
+
                 # Check capacity
                 if course_offering.enrolled_count >= course_offering.capacity:
                     errors.append(f"Course {course_offering.course.code} capacity reached")
                     continue
-                
+
                 # Check prerequisites
                 if not self._check_prerequisites(student, course_offering.course):
                     errors.append(f"Prerequisites not met for {course_offering.course.code}")
                     continue
-                
+
+                # Check credit-unit ceiling for this batch
+                if running_credit_units + course_offering.course.credits > MAX_CREDIT_UNITS_PAID:
+                    errors.append(f"{course_offering.course.code}: would exceed the {MAX_CREDIT_UNITS_PAID}-credit-unit limit")
+                    continue
+
                 # Create registration
                 # ✅ FIXED: Used CourseRegistration
                 registration = CourseRegistration.objects.create(
@@ -969,7 +984,8 @@ class ManualRegistrationOverrideViewSet(viewsets.ViewSet):
                 # Update enrollment count
                 course_offering.enrolled_count += 1
                 course_offering.save()
-                
+                running_credit_units += course_offering.course.credits
+
                 registrations.append({
                     'id': registration.id,
                     'course_code': course_offering.course.code,
@@ -1014,17 +1030,18 @@ class ManualRegistrationOverrideViewSet(viewsets.ViewSet):
             except Invoice.DoesNotExist:
                 issues.append('No fee invoice found')
         
-        # Check if already registered for maximum courses
-        # ✅ FIXED: Used CourseRegistration
-        current_reg_count = CourseRegistration.objects.filter(
+        # Check credit-unit ceiling (same rule as the student self-service
+        # path's "paid" ceiling -- a desk-officer override is already a
+        # deliberate manual action, so it gets the full allowance rather
+        # than its own separate number; see academics/constants.py)
+        current_credit_units = CourseRegistration.objects.filter(
             student=student,
             course_offering__semester=semester,
             status='registered'
-        ).count()
-        
-        max_courses = 6  # Configurable
-        if current_reg_count >= max_courses:
-            issues.append(f'Already registered for {current_reg_count} courses (max: {max_courses})')
+        ).aggregate(total=Sum('course_offering__course__credits'))['total'] or 0
+
+        if current_credit_units >= MAX_CREDIT_UNITS_PAID:
+            issues.append(f'Already registered for {current_credit_units} credit units (max: {MAX_CREDIT_UNITS_PAID})')
         
         # Check required documents
         required_docs = ['o_level', 'jamb_result', 'medical_report']

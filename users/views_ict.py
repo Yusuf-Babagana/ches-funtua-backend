@@ -27,6 +27,7 @@ from .permissions import IsICTOfficer
 
 # Import from other apps
 from academics.models import Department, Course, Semester
+from academics.constants import MAX_CREDIT_UNITS_PAID
 
 
 # ==============================================
@@ -1148,7 +1149,7 @@ class SystemConfigurationViewSet(viewsets.ViewSet):
             'result_publication': True,  # Placeholder
             'maintenance_mode': False,
             'allow_new_registrations': True,
-            'max_courses_per_semester': 6,
+            'max_credit_units_per_semester': MAX_CREDIT_UNITS_PAID,  # was a stale, unrelated "6 courses" display value
             'min_attendance_percentage': 75,
             'passing_grade': 'D',
             'gpa_calculation_method': '4.0 scale'

@@ -23,23 +23,25 @@
 <div class="card" style="margin-bottom:1.25rem;">
     <div class="card-body" style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:1rem; align-items:center;">
         <div>
-            <p class="text-sm text-muted">Registered / pending this semester</p>
-            <p style="font-size:1.5rem; font-weight:800;">{{ reg_status.registered_courses }} <span class="text-sm text-muted" style="font-weight:500;">/ {{ reg_status.max_courses }}</span></p>
+            <p class="text-sm text-muted">Credit units used this semester</p>
+            <p style="font-size:1.5rem; font-weight:800;">
+                <span id="units-used">{{ reg_status.total_credit_units }}</span> <span class="text-sm text-muted" style="font-weight:500;">/ {{ reg_status.max_credit_units }} units</span>
+            </p>
         </div>
         {% if not reg_status.has_paid_fees %}
         <div class="alert alert-warning" style="margin:0;">
-            Fees unpaid &mdash; up to <strong>{{ reg_status.remaining_free_courses }}</strong> more free course(s) allowed
-            (<a href="{% url 'portal:student_fees' %}">pay now</a> to unlock full registration).
+            Fees unpaid &mdash; up to <strong>{{ reg_status.remaining_free_units }}</strong> more credit unit(s) allowed
+            (<a href="{% url 'portal:student_fees' %}">pay now</a> to unlock the full {{ reg_status.max_credit_units }}-unit allowance).
         </div>
         {% else %}
-        <span class="badge badge-success">Fees paid &middot; up to 15 courses</span>
+        <span class="badge badge-success">Fees paid &middot; up to {{ reg_status.max_credit_units }} units</span>
         {% endif %}
     </div>
 </div>
 
 {% if not reg_status.can_register %}
 <div class="alert alert-info">
-    Registration is currently closed for your level, or you've reached your course limit for this semester.
+    Registration is currently closed for your level, or you've reached your credit-unit limit for this semester.
 </div>
 {% endif %}
 

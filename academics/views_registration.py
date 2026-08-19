@@ -3,12 +3,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
-from django.db.models import F
+from django.db.models import F, Sum
 from django.db import transaction
 
 from .models import Course, CourseOffering, CourseRegistration, Semester
 from finance.models import Invoice # ✅ ADDED IMPORT
 from .serializers import CourseOfferingSerializer, CourseRegistrationSerializer, RegistrationRequestSerializer
+from .constants import MAX_CREDIT_UNITS_PAID, MAX_CREDIT_UNITS_UNPAID
 from users.permissions import IsStudent
 
 class CourseOfferingViewSet(viewsets.ReadOnlyModelViewSet):
@@ -126,22 +127,25 @@ class RegistrationViewSet(viewsets.ModelViewSet):
             registered_count = regs.count()
             total_credits = sum(r.course_offering.course.credits for r in regs)
 
-        # --- FEE CHECK LOGIC (ALLOWS 2 COURSES IF UNPAID) ---
+        # --- FEE CHECK LOGIC (credit-unit cap: unpaid students get a
+        # smaller free allowance, paid students get the full ceiling --
+        # see academics/constants.py) ---
         has_paid_fees = False
         invoice = Invoice.objects.filter(
             student=student,
             session=current_semester.session,
             semester=current_semester.semester
         ).first()
-        
+
         if invoice and invoice.status == 'paid':
             has_paid_fees = True
 
-        can_register = has_paid_fees or (registered_count < 2)
+        max_units = MAX_CREDIT_UNITS_PAID if has_paid_fees else MAX_CREDIT_UNITS_UNPAID
+        can_register = total_credits < max_units
 
         return Response({
             'can_register': can_register,
-            'has_paid_fees': has_paid_fees,    
+            'has_paid_fees': has_paid_fees,
             'current_semester': {
                 'session': current_semester.session if current_semester else "N/A",
                 'semester': current_semester.semester if current_semester else "N/A",
@@ -151,7 +155,7 @@ class RegistrationViewSet(viewsets.ModelViewSet):
             'registration_status': {
                 'registered_courses': registered_count,
                 'total_credits': total_credits,
-                'max_courses': 15 if has_paid_fees else 2
+                'max_credit_units': max_units
             }
         })
 
@@ -163,29 +167,38 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         offering_ids = request.data.get('course_offering_ids', [])
         
         current_semester = Semester.objects.filter(is_current=True).first()
-        
-        # Get existing registration count
-        existing_reg_count = CourseRegistration.objects.filter(
+
+        # Ensure ids are unique integers before doing any credit-unit math
+        offering_ids = list(set([int(x) for x in offering_ids]))
+
+        # --- CREDIT-UNIT CAP (unpaid students get a smaller free
+        # allowance, paid students get the full ceiling -- see
+        # academics/constants.py) ---
+        existing_credit_units = CourseRegistration.objects.filter(
             student=student,
             course_offering__semester=current_semester
-        ).exclude(status='dropped').count()
+        ).exclude(status='dropped').aggregate(
+            total=Sum('course_offering__course__credits')
+        )['total'] or 0
 
-        # --- FEE CHECK (ALLOWS 2 COURSES IF UNPAID) ---
+        new_credit_units = CourseOffering.objects.filter(
+            id__in=offering_ids
+        ).aggregate(total=Sum('course__credits'))['total'] or 0
+
         has_paid = Invoice.objects.filter(
             student=student,
             session=current_semester.session,
             status='paid'
         ).exists()
-        
-        if not has_paid and (existing_reg_count + len(offering_ids) > 2):
-             return Response(
-                {'error': 'Tuition fees must be paid before registering more than 2 courses.'},
-                status=status.HTTP_400_BAD_REQUEST
-             )
 
-        # Ensure ids are unique integers
-        offering_ids = list(set([int(x) for x in offering_ids]))
-        
+        max_units = MAX_CREDIT_UNITS_PAID if has_paid else MAX_CREDIT_UNITS_UNPAID
+
+        if existing_credit_units + new_credit_units > max_units:
+            return Response(
+                {'error': f'Registering these courses would exceed your {max_units}-credit-unit limit for this semester.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         successful = []
         errors = []
 
