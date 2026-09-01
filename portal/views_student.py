@@ -81,6 +81,7 @@ def dashboard(request):
         has_paid=has_paid,
         available_offerings=available_offerings[:8],
         available_offerings_count=len(available_offerings),
+        program_status=svc.get_program_status(student),
     ))
 
 
@@ -472,6 +473,7 @@ def print_schedule(request):
 
 @role_required('student')
 def settings_view(request):
+    student = request.user.student_profile
     if request.method == 'POST':
         form = PasswordChangeForm(user=request.user, data=request.POST)
         if form.is_valid():
@@ -486,4 +488,5 @@ def settings_view(request):
         request, 'portal:student_settings',
         page_title='Account Settings',
         form=form,
+        program_status=svc.get_program_status(student),
     ))

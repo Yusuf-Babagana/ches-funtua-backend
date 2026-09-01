@@ -558,6 +558,36 @@ def register_carryover_course(student, course_id):
 
 
 # ---------------------------------------------------------------------------
+# Program / duration / semester countdown (new for the CHESF Student
+# Portal Digest -- Student.program was added in Checkpoint 1; nothing
+# reads it yet). "Semesters completed" is defined as the number of
+# distinct (session, semester) combinations the student has a
+# non-dropped registration in -- the simplest defensible reading of
+# "semester countdown" given the spec didn't define graduation/
+# completion criteria more precisely; it counts semesters the student
+# has been active in, not semesters with published results.
+# ---------------------------------------------------------------------------
+
+def get_program_status(student):
+    if not student.program:
+        return None
+
+    completed_semesters = CourseRegistration.objects.filter(
+        student=student,
+    ).exclude(status='dropped').values(
+        'course_offering__semester__session', 'course_offering__semester__semester',
+    ).distinct().count()
+
+    duration = student.program.duration_semesters
+    return {
+        'program': student.program,
+        'duration_semesters': duration,
+        'completed_semesters': completed_semesters,
+        'remaining_semesters': max(0, duration - completed_semesters),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Transcript (academics/views_transcript.py: TranscriptViewSet)
 # ---------------------------------------------------------------------------
 

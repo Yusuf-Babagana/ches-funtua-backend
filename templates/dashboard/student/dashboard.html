@@ -21,6 +21,9 @@
                         <span class="mono badge badge-neutral">{{ student.matric_number }}</span>
                         <span>{{ student.department.name|default:"Unassigned" }}</span>
                         <span>Level {{ student.level }}</span>
+                        {% if program_status %}
+                        <span class="badge badge-info">{{ program_status.program.name }} &middot; Semester {{ program_status.completed_semesters }} of {{ program_status.duration_semesters }}</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
