@@ -14,6 +14,7 @@ from .decorators import role_required
 NAV = [
     {'label': 'Dashboard', 'url_name': 'portal:dashboard_bursar'},
     {'label': 'Invoices', 'url_name': 'portal:bursar_invoices'},
+    {'label': 'Fee Catalog', 'url_name': 'portal:bursar_fee_items'},
     {'label': 'Verify Payments', 'url_name': 'portal:bursar_verify_payments'},
     {'label': 'Receipts', 'url_name': 'portal:bursar_receipts'},
 ]
@@ -130,6 +131,50 @@ def verify_payment_action(request, payment_id):
     ok, message = svc.verify_payment(payment_id, request.user, action, remarks)
     (messages.success if ok else messages.error)(request, message)
     return redirect('portal:bursar_verify_payments')
+
+
+@role_required('bursar')
+def fee_items(request):
+    if request.method == 'POST':
+        fee_item_id = request.POST.get('fee_item_id')
+        session = request.POST.get('session', '').strip()
+        semester = request.POST.get('semester', '').strip()
+        level = request.POST.get('level', '').strip()
+        amount_raw = request.POST.get('amount', '').strip()
+
+        if not all([fee_item_id, session, amount_raw]):
+            messages.error(request, 'Fee item, session, and amount are required.')
+            return redirect('portal:bursar_fee_items')
+        try:
+            amount = float(amount_raw)
+        except ValueError:
+            messages.error(request, 'Invalid amount format.')
+            return redirect('portal:bursar_fee_items')
+
+        charge, error = svc.upsert_fee_item_charge(fee_item_id, session, semester, level, amount)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, f'{charge.fee_item.name} priced at {amount:,.2f} for {session} and activated.')
+        return redirect('portal:bursar_fee_items')
+
+    return render(request, 'dashboard/bursar/fee_items.html', {
+        'nav_items': _nav('portal:bursar_fee_items'),
+        'page_title': 'Fee Catalog Pricing',
+        'fee_items': svc.get_fee_items(),
+        'charges': svc.get_fee_item_charges(),
+    })
+
+
+@role_required('bursar')
+@require_POST
+def deactivate_fee_item_charge(request, charge_id):
+    ok, error = svc.deactivate_fee_item_charge(charge_id)
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, 'Charge deactivated -- students can no longer pay this priced item until reactivated.')
+    return redirect('portal:bursar_fee_items')
 
 
 @role_required('bursar')

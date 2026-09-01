@@ -33,7 +33,7 @@ from academics.models import (
     AcademicLevelConfiguration, Course, CourseOffering, CourseRegistration,
     Grade, Semester,
 )
-from finance.models import Invoice
+from finance.models import FeeItem, Invoice
 
 
 # ---------------------------------------------------------------------------
@@ -389,6 +389,40 @@ def get_exam_card_data(student):
         'total_units': sum(c['unit'] for c in courses),
         'generated_at': timezone.now(),
     }, None
+
+
+# ---------------------------------------------------------------------------
+# Fee catalog (new for the CHESF Student Portal Digest feature work --
+# no DRF equivalent exists yet; this is genuinely new, not a port). Lists
+# every active FeeItem priced for the student's current session/semester/
+# level, alongside whatever invoice already exists for it so the template
+# can show "Pay", "Paid", or "Not yet available" per item.
+# ---------------------------------------------------------------------------
+
+def get_fee_catalog(student):
+    current_semester, _ = get_student_semester(student)
+    if not current_semester:
+        return []
+
+    rows = []
+    for fee_item in FeeItem.objects.filter(is_active=True).order_by('name'):
+        charge = fee_item.current_charge(
+            session=current_semester.session,
+            semester=current_semester.semester,
+            level=student.level,
+        )
+        invoice = Invoice.objects.filter(
+            student=student, fee_item=fee_item, session=current_semester.session,
+        ).exclude(status='cancelled').order_by('-created_at').first()
+
+        rows.append({
+            'fee_item': fee_item,
+            'charge': charge,
+            'invoice': invoice,
+            'is_paid': bool(invoice and invoice.status == 'paid'),
+            'is_priced': bool(charge and charge.amount > 0),
+        })
+    return rows
 
 
 # ---------------------------------------------------------------------------

@@ -233,3 +233,32 @@ class FinanceService:
         except Exception as e:
             logger.error(f"Error creating current invoice for student {student.id}: {e}", exc_info=True)
             return None, f'Could not generate invoice: {e}'
+
+    @staticmethod
+    def get_or_create_fee_item_invoice(student, fee_item, session, semester, amount):
+        """
+        Same lazy-invoice pattern as get_or_create_current_invoice, but for
+        an ad-hoc FeeItem (accommodation, index, practical, etc. -- see the
+        CHESF Student Portal Digest fee catalog) instead of tuition. Reuses
+        the exact same Invoice/Payment/Paystack pipeline -- one pending/
+        unpaid invoice per (student, fee_item, session), never duplicated
+        on repeat visits to the catalog page.
+        """
+        invoice = Invoice.objects.filter(
+            student=student, fee_item=fee_item, session=session,
+        ).exclude(status='cancelled').order_by('-created_at').first()
+        if invoice:
+            return invoice
+
+        return Invoice.objects.create(
+            student=student,
+            fee_item=fee_item,
+            invoice_number=f"FEE-{fee_item.code.upper()}-{timezone.now().strftime('%y%m%d%H%M%S')}-{student.id}",
+            amount=amount,
+            amount_paid=0.00,
+            status='pending',
+            session=session,
+            semester=semester,
+            due_date=(timezone.now() + timezone.timedelta(days=30)).date(),
+            description=f"{fee_item.name} ({session})",
+        )

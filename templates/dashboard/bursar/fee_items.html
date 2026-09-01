@@ -1,0 +1,130 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}Fee Catalog Pricing{% endblock %}
+{% block page_subtitle %}Set real prices for the named fee catalog &mdash; nothing is chargeable to students until priced here.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tabs { display:flex; gap:0.5rem; border-bottom:1px solid var(--slate-200); margin-bottom:1.5rem; }
+    .tab-btn { padding:0.65rem 1rem; font-weight:600; font-size:0.875rem; color:var(--slate-500); border-bottom:2px solid transparent; cursor:pointer; background:none; border-left:none; border-right:none; border-top:none; }
+    .tab-btn.is-active { color:var(--teal-700); border-bottom-color:var(--teal-600); }
+    .tab-panel { display:none; }
+    .tab-panel.is-active { display:block; }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="tabs">
+    <button type="button" class="tab-btn is-active" data-tab="set">Set Pricing</button>
+    <button type="button" class="tab-btn" data-tab="current">Current Charges</button>
+</div>
+
+<div class="tab-panel is-active" id="tab-set">
+    <div class="card" style="max-width:34rem;">
+        <div class="card-header">
+            <p class="card-title">Price a Fee Item</p>
+            <p class="card-description">
+                Leave Semester and Level blank to price an item for the whole session; fill them in to
+                set a more specific price (e.g. only 100 Level, first semester). Submitting activates the
+                price immediately.
+            </p>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="field">
+                    <label>Fee Item</label>
+                    <select name="fee_item_id" required>
+                        {% for item in fee_items %}
+                        <option value="{{ item.id }}">{{ item.name }} ({{ item.code }}){% if not item.is_active %} -- inactive{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-2">
+                    <div class="field">
+                        <label>Session</label>
+                        <input type="text" name="session" placeholder="2025/2026" required>
+                    </div>
+                    <div class="field">
+                        <label>Amount (&#8358;)</label>
+                        <input type="number" step="0.01" name="amount" required>
+                    </div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="field">
+                        <label>Semester (optional)</label>
+                        <select name="semester">
+                            <option value="">Whole session</option>
+                            <option value="first">First</option>
+                            <option value="second">Second</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Level (optional)</label>
+                        <select name="level">
+                            <option value="">All levels</option>
+                            <option value="100">100 Level</option>
+                            <option value="200">200 Level</option>
+                            <option value="300">300 Level</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">Set &amp; Activate Price</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="tab-panel" id="tab-current">
+    <div class="card">
+        <div class="card-body" style="padding:0;">
+            {% if not charges %}
+            <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No fee prices set yet.</div>
+            {% else %}
+            <div class="table-wrap" style="border:none;">
+                <table class="data-table">
+                    <thead><tr><th>Fee Item</th><th>Session</th><th>Semester</th><th>Level</th><th>Amount</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>
+                    <tbody>
+                        {% for charge in charges %}
+                        <tr>
+                            <td style="font-weight:600;">{{ charge.fee_item.name }}</td>
+                            <td class="mono text-xs">{{ charge.session }}</td>
+                            <td>{{ charge.get_semester_display|default:"Whole session" }}</td>
+                            <td>{{ charge.level|default:"All levels" }}</td>
+                            <td style="font-weight:700;">{{ charge.amount|naira }}</td>
+                            <td>
+                                {% if charge.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-neutral">Inactive</span>{% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                {% if charge.is_active %}
+                                <form method="post" action="{% url 'portal:bursar_deactivate_fee_item_charge' charge.id %}"
+                                      data-confirm="Deactivate this price? Students won't be able to pay {{ charge.fee_item.name }} for this scope until it's re-priced.">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline btn-sm">Deactivate</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('is-active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('is-active');
+        });
+    });
+</script>
+{% endblock %}

@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from academics.models import CourseRegistration
-from finance.models import Payment
+from finance.models import FeeItem, Payment
 from finance.services import FinanceService
 
 from . import services_student as svc
@@ -29,6 +29,7 @@ NAV = [
     {'label': 'Transcript', 'url_name': 'portal:student_transcript'},
     {'label': 'Exam Card', 'url_name': 'portal:student_exam_card'},
     {'label': 'Fees', 'url_name': 'portal:student_fees'},
+    {'label': 'Fee Catalog', 'url_name': 'portal:student_fee_catalog'},
     {'label': 'Payments', 'url_name': 'portal:student_payments'},
     {'label': 'Settings', 'url_name': 'portal:student_settings'},
 ]
@@ -276,6 +277,67 @@ def payment_verify(request):
         page_title='Payment Verification',
         status='error', message=result.get('error', 'Payment verification failed.'),
     ))
+
+
+# ---------------------------------------------------------------------------
+# Fee catalog (16-item named fee list -- CHESF Student Portal Digest)
+# ---------------------------------------------------------------------------
+
+@role_required('student')
+def fee_catalog(request):
+    student = request.user.student_profile
+    catalog = svc.get_fee_catalog(student)
+    return render(request, 'dashboard/student/fee_catalog.html', _ctx(
+        request, 'portal:student_fee_catalog',
+        page_title='Fee Catalog',
+        catalog=catalog,
+    ))
+
+
+@role_required('student')
+@require_POST
+def pay_fee_item(request, fee_item_id):
+    """
+    Same reuse-the-existing-Paystack-pipeline approach as pay_invoice:
+    lazily gets or creates the one pending invoice for this
+    (student, fee_item, session), then hands off straight to Paystack.
+    Fee-item invoices aren't part-payable, so there's no amount field --
+    the full current_charge() amount is what gets charged.
+    """
+    student = request.user.student_profile
+    fee_item = get_object_or_404(FeeItem, id=fee_item_id, is_active=True)
+    current_semester, _ = svc.get_student_semester(student)
+
+    if not current_semester:
+        messages.error(request, 'No active semester found.')
+        return redirect('portal:student_fee_catalog')
+
+    charge = fee_item.current_charge(
+        session=current_semester.session,
+        semester=current_semester.semester,
+        level=student.level,
+    )
+    if not charge or charge.amount <= 0:
+        messages.error(request, f'{fee_item.name} is not yet available for payment. Contact the Bursar.')
+        return redirect('portal:student_fee_catalog')
+
+    invoice = FinanceService.get_or_create_fee_item_invoice(
+        student, fee_item, current_semester.session, current_semester.semester, charge.amount,
+    )
+    if invoice.status == 'paid':
+        messages.info(request, f'{fee_item.name} is already paid.')
+        return redirect('portal:student_fee_catalog')
+
+    callback_url = request.build_absolute_uri(reverse('portal:student_payment_verify'))
+    result = FinanceService.initialize_paystack_transaction(
+        user=request.user, invoice=invoice, amount=float(invoice.balance), callback_url=callback_url,
+    )
+
+    if result['success']:
+        return redirect(result['authorization_url'])
+
+    messages.error(request, result.get('error', 'Payment initialization failed.'))
+    return redirect('portal:student_fee_catalog')
 
 
 # ---------------------------------------------------------------------------

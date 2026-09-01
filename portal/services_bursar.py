@@ -16,7 +16,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 
 from academics.models import Semester
-from finance.models import Invoice, Payment, PaymentReceipt
+from finance.models import FeeItem, FeeItemCharge, Invoice, Payment, PaymentReceipt
 from users.models import Student
 
 
@@ -186,6 +186,50 @@ def set_invoice_installment(invoice_id, amount):
     invoice.allow_part_payment = True
     invoice.save()
     return invoice, None
+
+
+# ---------------------------------------------------------------------------
+# Fee catalog pricing (new for the CHESF Student Portal Digest feature
+# work -- no DRF equivalent exists yet; this is the "Bursar-configurable
+# fee catalog" the user chose over hardcoded amounts. Nothing here is
+# chargeable to students until a FeeItemCharge is both created AND
+# is_active -- see FeeItem.current_charge()).
+# ---------------------------------------------------------------------------
+
+def get_fee_items():
+    return FeeItem.objects.all().order_by('name')
+
+
+def get_fee_item_charges(fee_item_id=None):
+    charges = FeeItemCharge.objects.select_related('fee_item').order_by('-created_at')
+    if fee_item_id:
+        charges = charges.filter(fee_item_id=fee_item_id)
+    return charges
+
+
+def upsert_fee_item_charge(fee_item_id, session, semester, level, amount):
+    """Creates or updates the (fee_item, session, semester, level) charge
+    and activates it -- this is the single moment a fee becomes payable."""
+    try:
+        fee_item = FeeItem.objects.get(id=fee_item_id)
+    except FeeItem.DoesNotExist:
+        return None, 'Fee item not found.'
+
+    charge, _ = FeeItemCharge.objects.update_or_create(
+        fee_item=fee_item, session=session, semester=semester or None, level=level or None,
+        defaults={'amount': amount, 'is_active': True},
+    )
+    return charge, None
+
+
+def deactivate_fee_item_charge(charge_id):
+    try:
+        charge = FeeItemCharge.objects.get(id=charge_id)
+    except FeeItemCharge.DoesNotExist:
+        return False, 'Charge not found.'
+    charge.is_active = False
+    charge.save(update_fields=['is_active', 'updated_at'])
+    return True, None
 
 
 # ---------------------------------------------------------------------------
