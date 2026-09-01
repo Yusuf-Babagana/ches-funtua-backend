@@ -16,10 +16,21 @@
             <p style="color:var(--danger); margin-top:0.5rem; font-size:0.875rem;">{{ message }}</p>
             {% endif %}
 
-            <div style="margin-top:1.75rem; display:flex; gap:0.75rem; justify-content:center;">
+            {% if next_step %}
+            <div class="alert alert-info" style="margin-top:1.5rem; text-align:left;">
+                One more step: this fee needs additional information before it's complete.
+            </div>
+            {% endif %}
+
+            <div style="margin-top:1.75rem; display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+                {% if next_step %}
+                <a href="{{ next_step.url }}" class="btn btn-primary">{{ next_step.label }}</a>
+                <a href="{% url 'portal:dashboard_student' %}" class="btn btn-outline">Back to Dashboard</a>
+                {% else %}
                 <a href="{% url 'portal:dashboard_student' %}" class="btn {% if status == 'success' %}btn-primary{% else %}btn-outline{% endif %}">Back to Dashboard</a>
                 {% if status != 'success' %}
                 <a href="{% url 'portal:student_fees' %}" class="btn btn-primary">Try Again</a>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

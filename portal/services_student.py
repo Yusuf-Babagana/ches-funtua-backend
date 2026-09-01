@@ -31,7 +31,7 @@ from django.utils import timezone
 from academics.constants import MAX_CREDIT_UNITS_PAID, MAX_CREDIT_UNITS_UNPAID
 from academics.models import (
     AcademicLevelConfiguration, Course, CourseOffering, CourseRegistration,
-    Grade, Semester,
+    Grade, IndexInformation, PracticalCenter, PracticalCenterSelection, Semester,
 )
 from finance.models import FeeItem, Invoice
 
@@ -555,6 +555,101 @@ def register_carryover_course(student, course_id):
                 message += ' Exam fee invoice generated.'
 
     return True, message
+
+
+# ---------------------------------------------------------------------------
+# Practical center selection + Index information (new for the CHESF
+# Student Portal Digest -- both models are provisional pending the real
+# requirements attachment, see academics/models.py. Both are gated on
+# having actually PAID the corresponding FeeItem for the current session
+# ('practical' / 'index'), server-side -- not just hidden in the UI --
+# since these are the two FeeItems flagged requires_selection=True and
+# the payment_verify redirect (portal/views_student.py) sends students
+# here right after paying, but a student could still navigate here
+# directly without having paid.
+# ---------------------------------------------------------------------------
+
+def _has_paid_fee_item(student, code, session):
+    if not session:
+        return False
+    fee_item = FeeItem.objects.filter(code=code).first()
+    if not fee_item:
+        return False
+    return Invoice.objects.filter(
+        student=student, fee_item=fee_item, session=session, status='paid',
+    ).exists()
+
+
+def get_practical_center_status(student):
+    current_semester, _ = get_student_semester(student)
+    session = current_semester.session if current_semester else None
+    has_paid = _has_paid_fee_item(student, 'practical', session)
+
+    selection = None
+    if session:
+        selection = PracticalCenterSelection.objects.filter(
+            student=student, session=session,
+        ).select_related('center').first()
+
+    return {
+        'has_paid': has_paid,
+        'session': session,
+        'selection': selection,
+        'centers': PracticalCenter.objects.filter(is_active=True).order_by('name') if has_paid else PracticalCenter.objects.none(),
+    }
+
+
+def select_practical_center(student, center_id):
+    current_semester, _ = get_student_semester(student)
+    if not current_semester:
+        return False, 'No active semester found.'
+    session = current_semester.session
+
+    if not _has_paid_fee_item(student, 'practical', session):
+        return False, 'You must pay the Practical Fee before selecting a center.'
+
+    try:
+        center = PracticalCenter.objects.get(id=center_id, is_active=True)
+    except PracticalCenter.DoesNotExist:
+        return False, 'Practical center not found.'
+
+    PracticalCenterSelection.objects.update_or_create(
+        student=student, session=session, defaults={'center': center},
+    )
+    return True, f'Practical center set to {center.name}.'
+
+
+def get_index_info_status(student):
+    current_semester, _ = get_student_semester(student)
+    session = current_semester.session if current_semester else None
+    return {
+        'has_paid': _has_paid_fee_item(student, 'index', session),
+        'info': IndexInformation.objects.filter(student=student).first(),
+    }
+
+
+def save_index_info(student, data, photo_file=None):
+    current_semester, _ = get_student_semester(student)
+    if not current_semester:
+        return None, 'No active semester found.'
+
+    if not _has_paid_fee_item(student, 'index', current_semester.session):
+        return None, 'You must pay the Index Fee before submitting this form.'
+
+    info, _ = IndexInformation.objects.update_or_create(
+        student=student,
+        defaults={
+            'state_of_origin': (data.get('state_of_origin') or '').strip(),
+            'lga': (data.get('lga') or '').strip(),
+            'next_of_kin_name': (data.get('next_of_kin_name') or '').strip(),
+            'next_of_kin_phone': (data.get('next_of_kin_phone') or '').strip(),
+            'additional_notes': (data.get('additional_notes') or '').strip(),
+        },
+    )
+    if photo_file:
+        info.passport_photo = photo_file
+        info.save(update_fields=['passport_photo', 'updated_at'])
+    return info, None
 
 
 # ---------------------------------------------------------------------------

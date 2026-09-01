@@ -33,6 +33,11 @@
                 {% if row.is_paid %}
                     <p style="font-weight:700; color:var(--success);">{{ row.invoice.amount|naira }}</p>
                     <span class="badge badge-success">Paid</span>
+                    {% if row.fee_item.code == 'practical' %}
+                    <br><a href="{% url 'portal:student_practical_center' %}" class="btn btn-outline btn-sm" style="margin-top:0.4rem;">Select Center</a>
+                    {% elif row.fee_item.code == 'index' %}
+                    <br><a href="{% url 'portal:student_index_info' %}" class="btn btn-outline btn-sm" style="margin-top:0.4rem;">Submit Index Info</a>
+                    {% endif %}
                 {% elif row.is_priced %}
                     <p style="font-weight:700;">{{ row.charge.amount|naira }}</p>
                     <form method="post" action="{% url 'portal:student_pay_fee_item' row.fee_item.id %}">

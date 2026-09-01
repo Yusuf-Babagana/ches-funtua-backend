@@ -259,6 +259,11 @@ def payment_verify(request):
     Landing page Paystack redirects back to after checkout. Verifies the
     transaction server-side via the same FinanceService used by the JWT
     API and the webhook -- never trusts the client on payment success.
+
+    For the two FeeItems flagged requires_selection (practical, index),
+    a successful verification also offers a "next step" link straight to
+    the follow-up page -- Practical Fee -> center selection, Index Fee ->
+    the index information form -- per the CHESF Student Portal Digest.
     """
     reference = request.GET.get('reference') or request.GET.get('trxref')
     if not reference:
@@ -270,10 +275,21 @@ def payment_verify(request):
 
     result = FinanceService.verify_paystack_transaction(reference)
     if result['success']:
+        next_step = None
+        payment = Payment.objects.filter(
+            paystack_reference=reference,
+        ).select_related('invoice__fee_item').first()
+        if payment and payment.invoice and payment.invoice.fee_item:
+            fee_code = payment.invoice.fee_item.code
+            if fee_code == 'practical':
+                next_step = {'label': 'Select Your Practical Center', 'url': reverse('portal:student_practical_center')}
+            elif fee_code == 'index':
+                next_step = {'label': 'Submit Index Information', 'url': reverse('portal:student_index_info')}
+
         return render(request, 'dashboard/student/payment_verify.html', _ctx(
             request, 'portal:student_fees',
             page_title='Payment Verification',
-            status='success', message=result['message'],
+            status='success', message=result['message'], next_step=next_step,
         ))
 
     return render(request, 'dashboard/student/payment_verify.html', _ctx(
@@ -342,6 +358,40 @@ def pay_fee_item(request, fee_item_id):
 
     messages.error(request, result.get('error', 'Payment initialization failed.'))
     return redirect('portal:student_fee_catalog')
+
+
+# ---------------------------------------------------------------------------
+# Practical center selection + Index information (post-payment follow-ups)
+# ---------------------------------------------------------------------------
+
+@role_required('student')
+def practical_center(request):
+    student = request.user.student_profile
+    if request.method == 'POST':
+        ok, message = svc.select_practical_center(student, request.POST.get('center_id'))
+        (messages.success if ok else messages.error)(request, message)
+        return redirect('portal:student_practical_center')
+
+    return render(request, 'dashboard/student/practical_center.html', _ctx(
+        request, 'portal:student_practical_center',
+        page_title='Practical Center',
+        **svc.get_practical_center_status(student),
+    ))
+
+
+@role_required('student')
+def index_info(request):
+    student = request.user.student_profile
+    if request.method == 'POST':
+        info, error = svc.save_index_info(student, request.POST, request.FILES.get('passport_photo'))
+        (messages.error if error else messages.success)(request, error or 'Index information saved.')
+        return redirect('portal:student_index_info')
+
+    return render(request, 'dashboard/student/index_info.html', _ctx(
+        request, 'portal:student_index_info',
+        page_title='Index Information',
+        **svc.get_index_info_status(student),
+    ))
 
 
 # ---------------------------------------------------------------------------

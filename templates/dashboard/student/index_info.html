@@ -1,0 +1,58 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Index Information{% endblock %}
+{% block page_subtitle %}Submit your bio-data for your student index.{% endblock %}
+
+{% block dashboard_content %}
+{% if not has_paid %}
+<div class="alert alert-warning">
+    You need to pay the Index Fee before you can submit this form.
+    <a href="{% url 'portal:student_fee_catalog' %}">Go to Fee Catalog</a>.
+</div>
+{% else %}
+
+<div class="alert alert-info" style="margin-bottom:1.5rem;">
+    This is a provisional set of fields pending the official Index requirements &mdash; contact the Registrar if something you need to submit isn't listed here.
+</div>
+
+<div class="card" style="max-width:36rem;">
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="field">
+                <label>Passport Photograph</label>
+                {% if info.passport_photo %}
+                <div style="margin-bottom:0.6rem;"><img src="{{ info.passport_photo.url }}" alt="Current passport photo" style="height:6rem; width:6rem; object-fit:cover; border-radius:var(--radius); border:1px solid var(--slate-200);"></div>
+                {% endif %}
+                <input type="file" name="passport_photo" accept="image/*">
+            </div>
+            <div class="grid grid-2">
+                <div class="field">
+                    <label>State of Origin</label>
+                    <input type="text" name="state_of_origin" value="{{ info.state_of_origin|default:'' }}">
+                </div>
+                <div class="field">
+                    <label>LGA</label>
+                    <input type="text" name="lga" value="{{ info.lga|default:'' }}">
+                </div>
+            </div>
+            <div class="grid grid-2">
+                <div class="field">
+                    <label>Next of Kin Name</label>
+                    <input type="text" name="next_of_kin_name" value="{{ info.next_of_kin_name|default:'' }}">
+                </div>
+                <div class="field">
+                    <label>Next of Kin Phone</label>
+                    <input type="text" name="next_of_kin_phone" value="{{ info.next_of_kin_phone|default:'' }}">
+                </div>
+            </div>
+            <div class="field">
+                <label>Additional Notes</label>
+                <textarea name="additional_notes" rows="3">{{ info.additional_notes|default:'' }}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block btn-lg">{% if info %}Update{% else %}Submit{% endif %} Index Information</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
