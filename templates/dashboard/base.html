@@ -50,6 +50,20 @@
         </div>
 
         <div class="dash__content">
+            {% if active_announcements %}
+            <div class="stack gap-2" style="margin-bottom:1.25rem;">
+                {% for note in active_announcements %}
+                <div class="alert {% if note.is_pinned %}alert-warning{% else %}alert-info{% endif %}">
+                    <div>
+                        <strong>{{ note.title }}</strong>{% if note.is_pinned %} <span class="badge badge-warning" style="margin-left:0.4rem;">Pinned</span>{% endif %}
+                        <p class="text-sm" style="margin-top:0.25rem;">{{ note.body }}</p>
+                        <p class="text-xs text-muted" style="margin-top:0.35rem;">{{ note.created_at|date:"M j, Y" }}{% if note.posted_by %} &middot; {{ note.posted_by.get_full_name }}{% endif %}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <div class="dash__page-header">
                 <h1>{% block page_title %}{{ page_title }}{% endblock %}</h1>
                 <p>{% block page_subtitle %}Manage your academic activities and records.{% endblock %}</p>

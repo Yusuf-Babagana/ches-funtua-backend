@@ -108,6 +108,37 @@
                 <p style="opacity:0.85; font-size:0.875rem; margin-top:0.25rem;">Session: {{ current_semester.session|default:"N/A" }}</p>
             </div>
         </div>
+
+        <div class="card">
+            <div class="card-header"><p class="card-title">Post Announcement</p></div>
+            <div class="card-body">
+                <p class="text-xs text-muted" style="margin-bottom:0.75rem;">Visible to every student in {{ department.name }} on their dashboard.</p>
+                <form method="post" action="{% url 'portal:hod_post_announcement' %}">
+                    {% csrf_token %}
+                    <div class="field">
+                        <label>Title</label>
+                        <input type="text" name="title" required maxlength="150">
+                    </div>
+                    <div class="field">
+                        <label>Message</label>
+                        <textarea name="body" rows="3" required></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Level (optional)</label>
+                        <select name="level">
+                            <option value="">All levels</option>
+                            <option value="100">100 Level</option>
+                            <option value="200">200 Level</option>
+                            <option value="300">300 Level</option>
+                        </select>
+                    </div>
+                    <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.85rem; font-size:0.875rem;">
+                        <input type="checkbox" name="is_pinned"> Pin this announcement
+                    </label>
+                    <button type="submit" class="btn btn-primary btn-block btn-sm">Post</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

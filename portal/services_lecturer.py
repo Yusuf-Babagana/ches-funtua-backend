@@ -23,8 +23,8 @@ from datetime import date as date_cls
 from django.db.models import Q
 
 from academics.models import (
-    Attendance, Course, CourseOffering, CourseRegistration, Enrollment,
-    Grade, Semester,
+    Announcement, Attendance, Course, CourseOffering, CourseRegistration,
+    Enrollment, Grade, Semester,
 )
 from users.models import Student
 
@@ -355,3 +355,22 @@ def get_attendance_report(course, start_date, end_date):
         })
     report.sort(key=lambda x: x['percentage'])
     return report, total_classes
+
+
+# ---------------------------------------------------------------------------
+# Announcements (new for the CHESF Student Portal Digest feature work --
+# same small "Post Announcement" action as the HOD dashboard, scoped to
+# the lecturer's own department so a lecturer can't broadcast college-wide).
+# ---------------------------------------------------------------------------
+
+def post_announcement(lecturer, title, body, level='', is_pinned=False):
+    title = (title or '').strip()
+    body = (body or '').strip()
+    if not title or not body:
+        return None, 'Title and body are required.'
+
+    announcement = Announcement.objects.create(
+        title=title, body=body, posted_by=lecturer.user, department=lecturer.department,
+        level=level or '', is_pinned=is_pinned,
+    )
+    return announcement, None

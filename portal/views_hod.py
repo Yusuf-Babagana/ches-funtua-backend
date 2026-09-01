@@ -188,6 +188,24 @@ def approve_results(request, course_id):
 
 @role_required('hod')
 @require_POST
+def post_announcement(request):
+    department, error = _get_department_or_error(request)
+    if error:
+        return error
+    announcement, err = svc.post_announcement(
+        request.user, department,
+        request.POST.get('title', ''), request.POST.get('body', ''),
+        level=request.POST.get('level', ''), is_pinned=bool(request.POST.get('is_pinned')),
+    )
+    if err:
+        messages.error(request, err)
+    else:
+        messages.success(request, 'Announcement posted.')
+    return redirect('portal:dashboard_hod')
+
+
+@role_required('hod')
+@require_POST
 def reject_results(request, course_id):
     department, error = _get_department_or_error(request)
     if error:

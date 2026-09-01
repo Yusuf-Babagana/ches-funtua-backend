@@ -27,7 +27,7 @@ HODDashboardViewSet.students view instead.
 """
 from django.db.models import Q
 
-from academics.models import Course, CourseOffering, Department, Semester
+from academics.models import Announcement, Course, CourseOffering, Department, Semester
 from users.models import Lecturer, Student
 
 
@@ -233,3 +233,24 @@ def reject_course_results(department, course_id, reason):
     count = grades.count()
     grades.update(status='draft', remarks=f"HOD Rejection: {reason}")
     return count, None
+
+
+# ---------------------------------------------------------------------------
+# Announcements (new for the CHESF Student Portal Digest feature work --
+# the model-level authoring surface is Django admin; this is the small
+# "Post Announcement" action the plan calls for on dashboards that
+# already exist. Always scoped to the HOD's own department -- never
+# lets an HOD broadcast to the whole college.
+# ---------------------------------------------------------------------------
+
+def post_announcement(user, department, title, body, level='', is_pinned=False):
+    title = (title or '').strip()
+    body = (body or '').strip()
+    if not title or not body:
+        return None, 'Title and body are required.'
+
+    announcement = Announcement.objects.create(
+        title=title, body=body, posted_by=user, department=department,
+        level=level or '', is_pinned=is_pinned,
+    )
+    return announcement, None

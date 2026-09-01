@@ -42,6 +42,7 @@ urlpatterns = [
     path('dashboard/lecturer/courses/<int:course_id>/students/', views_lecturer.course_students, name='lecturer_course_students'),
     path('dashboard/lecturer/attendance/', views_lecturer.attendance, name='lecturer_attendance'),
     path('dashboard/lecturer/attendance/<int:course_id>/mark/', views_lecturer.mark_attendance, name='lecturer_mark_attendance'),
+    path('dashboard/lecturer/announcements/post/', views_lecturer.post_announcement, name='lecturer_post_announcement'),
 
     # --- HOD (Phase 5 -- fully migrated) ---
     path('dashboard/hod/', views_hod.dashboard, name='dashboard_hod'),
@@ -53,6 +54,7 @@ urlpatterns = [
     path('dashboard/hod/approvals/<int:course_id>/', views_hod.approval_detail, name='hod_approval_detail'),
     path('dashboard/hod/approvals/<int:course_id>/approve/', views_hod.approve_results, name='hod_approve_results'),
     path('dashboard/hod/approvals/<int:course_id>/reject/', views_hod.reject_results, name='hod_reject_results'),
+    path('dashboard/hod/announcements/post/', views_hod.post_announcement, name='hod_post_announcement'),
 
     # --- Registrar (Phase 6 -- fully migrated) ---
     path('dashboard/registrar/', views_registrar.dashboard, name='dashboard_registrar'),

@@ -203,3 +203,22 @@ def mark_attendance(request, course_id):
         messages.error(request, err)
 
     return redirect(f"{attendance_url}?course_id={course.id}&date={mark_date.isoformat()}")
+
+
+# ---------------------------------------------------------------------------
+# Announcements
+# ---------------------------------------------------------------------------
+
+@role_required('lecturer')
+@require_POST
+def post_announcement(request):
+    lecturer = request.user.lecturer_profile
+    announcement, err = svc.post_announcement(
+        lecturer, request.POST.get('title', ''), request.POST.get('body', ''),
+        level=request.POST.get('level', ''), is_pinned=bool(request.POST.get('is_pinned')),
+    )
+    if err:
+        messages.error(request, err)
+    else:
+        messages.success(request, 'Announcement posted.')
+    return redirect('portal:dashboard_lecturer')
