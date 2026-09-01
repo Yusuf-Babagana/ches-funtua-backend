@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from academics.models import CourseRegistration
-from finance.models import FeeItem, Payment
+from finance.models import FeeItem, Invoice, Payment
 from finance.services import FinanceService
 
 from . import services_student as svc
@@ -30,6 +30,7 @@ NAV = [
     {'label': 'Exam Card', 'url_name': 'portal:student_exam_card'},
     {'label': 'Fees', 'url_name': 'portal:student_fees'},
     {'label': 'Fee Catalog', 'url_name': 'portal:student_fee_catalog'},
+    {'label': 'Carry-Over', 'url_name': 'portal:student_carryover'},
     {'label': 'Payments', 'url_name': 'portal:student_payments'},
     {'label': 'Settings', 'url_name': 'portal:student_settings'},
 ]
@@ -338,6 +339,47 @@ def pay_fee_item(request, fee_item_id):
 
     messages.error(request, result.get('error', 'Payment initialization failed.'))
     return redirect('portal:student_fee_catalog')
+
+
+# ---------------------------------------------------------------------------
+# Carry-over courses
+# ---------------------------------------------------------------------------
+
+@role_required('student')
+def carryover(request):
+    student = request.user.student_profile
+    data = svc.get_carryover_status(student)
+    return render(request, 'dashboard/student/carryover.html', _ctx(
+        request, 'portal:student_carryover',
+        page_title='Carry-Over Courses',
+        current_semester=data['current_semester'],
+        rows=data['rows'],
+    ))
+
+
+@role_required('student')
+@require_POST
+def register_carryover(request, course_id):
+    student = request.user.student_profile
+    ok, message = svc.register_carryover_course(student, course_id)
+    (messages.success if ok else messages.error)(request, message)
+    return redirect('portal:student_carryover')
+
+
+@role_required('student')
+def carryover_slip(request, registration_id):
+    student = request.user.student_profile
+    # Ownership enforced via student= filter (IDOR prevention), same
+    # pattern as receipt() below.
+    registration = get_object_or_404(CourseRegistration, id=registration_id, student=student)
+    invoice = Invoice.objects.filter(
+        student=student, course_registration=registration,
+    ).order_by('-created_at').first()
+    return render(request, 'dashboard/student/carryover_slip.html', {
+        'student': student,
+        'registration': registration,
+        'invoice': invoice,
+    })
 
 
 # ---------------------------------------------------------------------------

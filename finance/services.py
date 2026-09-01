@@ -262,3 +262,34 @@ class FinanceService:
             due_date=(timezone.now() + timezone.timedelta(days=30)).date(),
             description=f"{fee_item.name} ({session})",
         )
+
+    @staticmethod
+    def get_or_create_carryover_invoice(student, course_registration, fee_item, amount):
+        """
+        Same lazy-invoice pattern again, but scoped to one specific
+        carry-over CourseRegistration rather than just (student, fee_item,
+        session) -- a student can be carrying over more than one course in
+        the same session, and each needs its own exam-fee invoice tied to
+        the specific re-registration it's for (Invoice.course_registration,
+        added in Checkpoint 1).
+        """
+        invoice = Invoice.objects.filter(
+            student=student, course_registration=course_registration, fee_item=fee_item,
+        ).exclude(status='cancelled').order_by('-created_at').first()
+        if invoice:
+            return invoice
+
+        offering = course_registration.course_offering
+        return Invoice.objects.create(
+            student=student,
+            fee_item=fee_item,
+            course_registration=course_registration,
+            invoice_number=f"CO-{fee_item.code.upper()}-{timezone.now().strftime('%y%m%d%H%M%S')}-{student.id}",
+            amount=amount,
+            amount_paid=0.00,
+            status='pending',
+            session=offering.semester.session,
+            semester=offering.semester.semester,
+            due_date=(timezone.now() + timezone.timedelta(days=30)).date(),
+            description=f"Carry-over exam fee for {offering.course.code} ({offering.semester.session})",
+        )

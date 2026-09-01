@@ -426,6 +426,138 @@ def get_fee_catalog(student):
 
 
 # ---------------------------------------------------------------------------
+# Carry-over courses (new for the CHESF Student Portal Digest -- no
+# separate model needed. A "carry-over" is simply a course whose most
+# recent *published* Grade is an F, with no later published attempt that
+# passed it (confirmed by exploration: no carry-over/resit concept exists
+# anywhere in the codebase today). Retaking it is an ordinary course
+# registration -- same credit-unit cap, same CourseOffering machinery,
+# via register_courses() above -- plus a per-registration carry-over exam
+# fee invoice (Invoice.course_registration, added in Checkpoint 1).
+# ---------------------------------------------------------------------------
+
+CARRYOVER_EXAM_FEE_CODES = {'first': 'exam_first_semester', 'second': 'exam_second_semester'}
+_SEM_ORDER = {'first': 1, 'second': 2}
+
+
+def get_failed_courses(student):
+    """
+    For each course the student has a published Grade for, look only at
+    the most recent attempt (by session, then semester) -- if that's an
+    F, the course is still outstanding. An earlier F followed by a later
+    pass is *not* outstanding.
+    """
+    grades = Grade.objects.filter(
+        student=student, status='published',
+    ).select_related('course').order_by('course_id', 'session', 'semester')
+
+    latest_by_course = {}
+    for g in grades:
+        sort_key = (g.session, _SEM_ORDER.get(g.semester.lower(), 3))
+        existing = latest_by_course.get(g.course_id)
+        if not existing or sort_key >= existing[0]:
+            latest_by_course[g.course_id] = (sort_key, g)
+
+    return [g for (_, g) in latest_by_course.values() if g.grade_letter == 'F']
+
+
+def get_carryover_status(student):
+    current_semester, _ = get_student_semester(student)
+    failed_grades = get_failed_courses(student)
+
+    rows = []
+    for grade in failed_grades:
+        course = grade.course
+        registration = None
+        if current_semester:
+            registration = CourseRegistration.objects.filter(
+                student=student, course_offering__course=course,
+                course_offering__semester=current_semester,
+            ).exclude(status='dropped').first()
+
+        invoice = None
+        if registration:
+            invoice = Invoice.objects.filter(
+                student=student, course_registration=registration,
+            ).exclude(status='cancelled').order_by('-created_at').first()
+
+        rows.append({
+            'course': course,
+            'failed_grade': grade,
+            'registration': registration,
+            'invoice': invoice,
+            'is_registered': bool(registration),
+            'is_paid': bool(invoice and invoice.status == 'paid'),
+        })
+    return {'current_semester': current_semester, 'rows': rows}
+
+
+def register_carryover_course(student, course_id):
+    """
+    Registers a failed-and-not-yet-passed course for the current global
+    semester (same resolution register_courses() uses), then lazily
+    creates its carry-over exam-fee invoice if the Bursar has priced one
+    for this session/semester/level. Server-side re-validates the course
+    is actually an outstanding carry-over rather than trusting the
+    submitted course_id.
+
+    Deliberately re-callable on an already-registered course: the Bursar
+    may price the carry-over exam fee *after* the student has already
+    registered, and this is also the "check for exam fee" action the
+    carry-over page offers for that already-registered-but-unpriced
+    state -- it must not bail out early just because a registration
+    already exists. Returns (ok, message).
+    """
+    current_semester = Semester.objects.filter(is_current=True).first()
+    if not current_semester:
+        return False, 'No active semester found.'
+
+    try:
+        course = Course.objects.get(id=course_id)
+    except Course.DoesNotExist:
+        return False, 'Course not found.'
+
+    failed_course_ids = {g.course_id for g in get_failed_courses(student)}
+    if course.id not in failed_course_ids:
+        return False, 'That course is not an outstanding carry-over for you.'
+
+    offering, _ = CourseOffering.objects.get_or_create(
+        course=course, semester=current_semester,
+        defaults={'capacity': 200, 'is_active': True},
+    )
+
+    registration = CourseRegistration.objects.filter(
+        student=student, course_offering=offering,
+    ).exclude(status='dropped').first()
+
+    if registration:
+        message = f'{course.code} is already registered.'
+    else:
+        successful, errors = register_courses(student, [offering.id])
+        if not successful:
+            return False, errors[0] if errors else 'Registration failed.'
+        registration = CourseRegistration.objects.filter(id__in=successful).first()
+        message = f'{course.code} registered as a carry-over course.'
+
+    fee_code = CARRYOVER_EXAM_FEE_CODES.get(current_semester.semester)
+    fee_item = FeeItem.objects.filter(code=fee_code, is_active=True).first() if fee_code else None
+    if fee_item and registration:
+        charge = fee_item.current_charge(
+            session=current_semester.session, semester=current_semester.semester, level=student.level,
+        )
+        if charge and charge.amount > 0:
+            had_invoice = Invoice.objects.filter(
+                student=student, course_registration=registration,
+            ).exclude(status='cancelled').exists()
+            from finance.services import FinanceService
+            FinanceService.get_or_create_carryover_invoice(student, registration, fee_item, charge.amount)
+            if not had_invoice:
+                message += ' Exam fee invoice generated.'
+
+    return True, message
+
+
+# ---------------------------------------------------------------------------
 # Transcript (academics/views_transcript.py: TranscriptViewSet)
 # ---------------------------------------------------------------------------
 
