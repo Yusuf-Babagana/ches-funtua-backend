@@ -36,3 +36,26 @@ def announcements(request):
     # to narrow what students see, not to hide announcements from staff.
 
     return {'active_announcements': qs.order_by('-is_pinned', '-created_at')[:5]}
+
+
+def support_unread_count(request):
+    """
+    Injects `support_unread_count` so the persistent Support nav link's
+    unread badge (templates/dashboard/base.html) shows up on every
+    dashboard page, same reasoning as announcements() above. Only
+    students and desk officers participate in support chat, so every
+    other role gets 0 without a query.
+    """
+    if not request.user.is_authenticated:
+        return {}
+
+    from . import services_support as svc
+
+    student = getattr(request.user, 'student_profile', None)
+    if student:
+        return {'support_unread_count': svc.get_student_unread_count(student)}
+
+    if request.user.role == 'desk-officer':
+        return {'support_unread_count': svc.get_desk_officer_unread_total()}
+
+    return {'support_unread_count': 0}

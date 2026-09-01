@@ -1,0 +1,30 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Support Inbox{% endblock %}
+{% block page_subtitle %}Open student support chats, most recently active first.{% endblock %}
+
+{% block dashboard_content %}
+{% if not threads %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No open support chats.</div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% for thread in threads %}
+        <a href="{% url 'portal:do_support_thread' thread.id %}" style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.25rem; border-bottom:1px solid var(--slate-100); text-decoration:none; color:inherit;">
+            <div>
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                    <span style="font-weight:700;">{{ thread.student.user.get_full_name }}</span>
+                    <span class="text-xs text-muted mono">{{ thread.student.matric_number }}</span>
+                    {% if thread.unread_count %}<span class="badge badge-danger">{{ thread.unread_count }} new</span>{% endif %}
+                </div>
+                <p class="text-xs text-muted" style="margin-top:0.25rem;">Last active {{ thread.updated_at|date:"M j, g:i A" }}</p>
+            </div>
+            <span class="btn btn-outline btn-sm">Open Chat</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -50,6 +50,10 @@
         <a href="{% url 'portal:do_students' %}" class="card" style="padding:1.25rem; text-align:center; text-decoration:none;">
             <p style="font-weight:700;">Student Search</p>
         </a>
+        <a href="{% url 'portal:do_support' %}" class="card" style="padding:1.25rem; text-align:center; text-decoration:none;">
+            <p style="font-weight:700;">Support Inbox</p>
+            {% if support_unread_count %}<span class="badge badge-warning" style="margin-top:0.4rem;">{{ support_unread_count }}</span>{% endif %}
+        </a>
     </div>
 </div>
 {% endblock %}

@@ -19,8 +19,11 @@
         <nav class="dash__nav">
             <div class="dash__nav-label">Menu</div>
             {% for item in nav_items %}
-            <a href="{% url item.url_name %}" class="dash__nav-link{% if item.is_active %} is-active{% endif %}">
-                {{ item.label }}
+            <a href="{% url item.url_name %}" class="dash__nav-link{% if item.is_active %} is-active{% endif %}" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>{{ item.label }}</span>
+                {% if support_unread_count and item.url_name == "portal:student_support" or support_unread_count and item.url_name == "portal:do_support" %}
+                <span class="badge badge-danger" style="margin-left:0.5rem;">{{ support_unread_count }}</span>
+                {% endif %}
             </a>
             {% endfor %}
         </nav>

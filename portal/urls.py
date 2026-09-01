@@ -29,6 +29,9 @@ urlpatterns = [
     path('dashboard/student/carryover/', views_student.carryover, name='student_carryover'),
     path('dashboard/student/carryover/<int:course_id>/register/', views_student.register_carryover, name='student_register_carryover'),
     path('dashboard/student/carryover/<int:registration_id>/slip/', views_student.carryover_slip, name='student_carryover_slip'),
+    path('dashboard/student/support/', views_student.support, name='student_support'),
+    path('dashboard/student/support/poll/', views_student.support_poll, name='student_support_poll'),
+    path('dashboard/student/support/send/', views_student.support_send, name='student_support_send'),
     path('dashboard/student/payments/', views_student.payments, name='student_payments'),
     path('dashboard/student/payments/verify/', views_student.payment_verify, name='student_payment_verify'),
     path('dashboard/student/payments/<int:payment_id>/receipt/', views_student.receipt, name='student_receipt'),
@@ -102,6 +105,11 @@ urlpatterns = [
     path('dashboard/desk-officer/payments/', views_desk_officer.payments, name='do_payments'),
     path('dashboard/desk-officer/payments/<int:payment_id>/verify/', views_desk_officer.verify_payment, name='do_verify_payment'),
     path('dashboard/desk-officer/registration/', views_desk_officer.registration, name='do_registration'),
+    path('dashboard/desk-officer/support/', views_desk_officer.support_inbox, name='do_support'),
+    path('dashboard/desk-officer/support/<int:thread_id>/', views_desk_officer.support_thread, name='do_support_thread'),
+    path('dashboard/desk-officer/support/<int:thread_id>/poll/', views_desk_officer.support_thread_poll, name='do_support_thread_poll'),
+    path('dashboard/desk-officer/support/<int:thread_id>/send/', views_desk_officer.support_thread_send, name='do_support_thread_send'),
+    path('dashboard/desk-officer/support/<int:thread_id>/close/', views_desk_officer.support_close_thread, name='do_support_close_thread'),
 
     # --- Other roles (placeholders, migrated in later phases) ---
     path('dashboard/ict/', views.dashboard_ict, name='dashboard_ict'),

@@ -8,7 +8,7 @@ unpaid-registration exception).
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -18,6 +18,7 @@ from finance.models import FeeItem, Invoice, Payment
 from finance.services import FinanceService
 
 from . import services_student as svc
+from . import services_support as support_svc
 from .decorators import role_required
 from .roles import get_nav_items
 
@@ -31,6 +32,7 @@ NAV = [
     {'label': 'Fees', 'url_name': 'portal:student_fees'},
     {'label': 'Fee Catalog', 'url_name': 'portal:student_fee_catalog'},
     {'label': 'Carry-Over', 'url_name': 'portal:student_carryover'},
+    {'label': 'Support', 'url_name': 'portal:student_support'},
     {'label': 'Payments', 'url_name': 'portal:student_payments'},
     {'label': 'Settings', 'url_name': 'portal:student_settings'},
 ]
@@ -380,6 +382,44 @@ def carryover_slip(request, registration_id):
         'registration': registration,
         'invoice': invoice,
     })
+
+
+# ---------------------------------------------------------------------------
+# Support chat
+# ---------------------------------------------------------------------------
+
+@role_required('student')
+def support(request):
+    student = request.user.student_profile
+    thread = support_svc.get_or_create_thread(student)
+    support_svc.mark_read(thread, request.user)
+    return render(request, 'dashboard/student/support.html', _ctx(
+        request, 'portal:student_support',
+        page_title='Support',
+        thread=thread,
+        chat_messages=support_svc.get_messages(thread),
+    ))
+
+
+@role_required('student')
+def support_poll(request):
+    student = request.user.student_profile
+    thread = support_svc.get_or_create_thread(student)
+    msgs = support_svc.get_messages(thread, after_id=request.GET.get('after'))
+    payload = [support_svc.serialize_message(m, request.user) for m in msgs]
+    support_svc.mark_read(thread, request.user)
+    return JsonResponse({'messages': payload, 'is_closed': thread.is_closed})
+
+
+@role_required('student')
+@require_POST
+def support_send(request):
+    student = request.user.student_profile
+    thread = support_svc.get_or_create_thread(student)
+    message, error = support_svc.post_message(thread, request.user, request.POST.get('body', ''))
+    if error:
+        return JsonResponse({'error': error}, status=400)
+    return JsonResponse({'message': support_svc.serialize_message(message, request.user)})
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ working implementation of real, already-existing backend functionality
 rather than a like-for-like reproduction.
 """
 from django.contrib import messages
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -16,7 +17,9 @@ from academics.models import Department
 from users.models import Student
 
 from . import services_desk_officer as svc
+from . import services_support as support_svc
 from .decorators import role_required
+from support.models import ChatThread
 
 NAV = [
     {'label': 'Dashboard', 'url_name': 'portal:dashboard_desk_officer'},
@@ -25,6 +28,7 @@ NAV = [
     {'label': 'Queries', 'url_name': 'portal:do_queries'},
     {'label': 'Payments', 'url_name': 'portal:do_payments'},
     {'label': 'Manual Registration', 'url_name': 'portal:do_registration'},
+    {'label': 'Support', 'url_name': 'portal:do_support'},
 ]
 
 
@@ -197,3 +201,58 @@ def registration(request):
         'issues': issues,
         'max_credit_units': MAX_CREDIT_UNITS_PAID,
     })
+
+
+# ---------------------------------------------------------------------------
+# Support chat (shared inbox -- any desk officer can open any thread)
+# ---------------------------------------------------------------------------
+
+@role_required('desk-officer')
+def support_inbox(request):
+    return render(request, 'dashboard/desk_officer/support.html', {
+        'nav_items': _nav('portal:do_support'),
+        'page_title': 'Support Inbox',
+        'threads': support_svc.get_desk_officer_inbox(),
+    })
+
+
+@role_required('desk-officer')
+def support_thread(request, thread_id):
+    thread = get_object_or_404(ChatThread, id=thread_id)
+    support_svc.mark_read(thread, request.user)
+    return render(request, 'dashboard/desk_officer/support_thread.html', {
+        'nav_items': _nav('portal:do_support'),
+        'page_title': f"Chat -- {thread.student.matric_number}",
+        'thread': thread,
+        'chat_messages': support_svc.get_messages(thread),
+    })
+
+
+@role_required('desk-officer')
+def support_thread_poll(request, thread_id):
+    thread = get_object_or_404(ChatThread, id=thread_id)
+    msgs = support_svc.get_messages(thread, after_id=request.GET.get('after'))
+    payload = [support_svc.serialize_message(m, request.user) for m in msgs]
+    support_svc.mark_read(thread, request.user)
+    return JsonResponse({'messages': payload, 'is_closed': thread.is_closed})
+
+
+@role_required('desk-officer')
+@require_POST
+def support_thread_send(request, thread_id):
+    thread = get_object_or_404(ChatThread, id=thread_id)
+    message, error = support_svc.post_message(thread, request.user, request.POST.get('body', ''))
+    if error:
+        return JsonResponse({'error': error}, status=400)
+    return JsonResponse({'message': support_svc.serialize_message(message, request.user)})
+
+
+@role_required('desk-officer')
+@require_POST
+def support_close_thread(request, thread_id):
+    ok, error = support_svc.close_thread(thread_id)
+    if ok:
+        messages.success(request, 'Thread closed.')
+    else:
+        messages.error(request, error)
+    return redirect('portal:do_support')
