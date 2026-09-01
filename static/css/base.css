@@ -187,7 +187,7 @@ table.data-table tbody tr:hover { background: var(--slate-50); }
 /* =========================================================================
    Dashboard shell (sidebar + topbar) — templates/dashboard/base.html
    ========================================================================= */
-.dash { display: flex; min-height: 100vh; background: var(--slate-50); }
+.dash { display: flex; min-height: 100vh; background: var(--slate-50); position: relative; }
 
 .dash__sidebar {
     width: var(--sidebar-width); flex-shrink: 0; background: var(--white); border-right: 1px solid var(--slate-200);
@@ -218,7 +218,7 @@ table.data-table tbody tr:hover { background: var(--slate-50); }
 .dash__user-name { font-size: 0.85rem; font-weight: 600; color: var(--slate-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash__user-role { font-size: 0.75rem; color: var(--slate-500); text-transform: capitalize; }
 
-.dash__main { flex: 1; min-width: 0; }
+.dash__main { flex: 1; min-width: 0; position: relative; z-index: 1; }
 @media (min-width: 900px) { .dash__main { margin-left: var(--sidebar-width); } }
 
 .dash__topbar { display: none; align-items: center; justify-content: space-between; height: 4rem; padding: 0 1rem;
@@ -241,3 +241,30 @@ table.data-table tbody tr:hover { background: var(--slate-50); }
 .stat-tile { background: var(--white); border: 1px solid var(--slate-200); border-radius: var(--radius-lg); padding: 1.1rem; text-align: center; }
 .stat-tile__value { font-size: 1.5rem; font-weight: 800; color: var(--slate-900); }
 .stat-tile__label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--slate-500); margin-top: 0.25rem; }
+
+/* =========================================================================
+   Brand watermark (CHESF Student Portal Digest theming) — a low-opacity
+   background mark built from the same mortarboard glyph as
+   static/img/favicon.svg, pure CSS (inline SVG data-URI) since no real
+   college logo file was provided. Swap the data-URI below for a real
+   logo later; every element that opts in via .brand-watermark gets it
+   automatically. The element using this class needs `position: relative`
+   (already true everywhere it's applied below) so the mark stays behind
+   that element's own content instead of the whole page.
+   ========================================================================= */
+.brand-watermark { position: relative; overflow: hidden; }
+.brand-watermark::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 8l10 4.5-10 4.5-10-4.5L16 8z' fill='%230f766e'/%3E%3Cpath d='M9.5 15v5.2c0 1.9 2.9 3.6 6.5 3.6s6.5-1.7 6.5-3.6V15' fill='none' stroke='%230f766e' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.brand-watermark--hero::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 8l10 4.5-10 4.5-10-4.5L16 8z' fill='white'/%3E%3Cpath d='M9.5 15v5.2c0 1.9 2.9 3.6 6.5 3.6s6.5-1.7 6.5-3.6V15' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-position: 92% 15%; background-size: 22rem; opacity: 0.12;
+}
+.brand-watermark--login::before { background-position: center 8%; background-size: 18rem; opacity: 0.05; }
+.brand-watermark--dash::before { background-position: 100% 100%; background-size: 34rem; opacity: 0.035; }

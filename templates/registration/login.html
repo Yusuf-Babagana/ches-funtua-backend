@@ -7,7 +7,7 @@
 <style>
     .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
         background: linear-gradient(180deg, var(--teal-50), var(--slate-50) 60%); }
-    .login-card { width: 100%; max-width: 26rem; }
+    .login-card { width: 100%; max-width: 26rem; position: relative; z-index: 1; }
     .login-brand { text-align: center; margin-bottom: 2rem; }
     .login-brand-mark { margin: 0 auto 1.25rem; height: 3.5rem; width: 3.5rem; border-radius: var(--radius-lg);
         background: var(--teal-700); color: var(--white); display: flex; align-items: center; justify-content: center;
@@ -20,7 +20,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="login-wrap">
+<div class="login-wrap brand-watermark brand-watermark--login">
     <div class="login-card">
         <div class="login-brand">
             <div class="login-brand-mark">CF</div>
