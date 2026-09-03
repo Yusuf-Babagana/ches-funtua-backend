@@ -1,0 +1,106 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}ICT Dashboard{% endblock %}
+{% block page_subtitle %}System overview, account provisioning, and configuration.{% endblock %}
+
+{% block dashboard_content %}
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value">{{ system_statistics.total_users }}</div><div class="stat-tile__label">Total Users</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--success);">{{ system_statistics.active_users }}</div><div class="stat-tile__label">Active Users</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ system_statistics.inactive_users }}</div><div class="stat-tile__label">Inactive Users</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--teal-600);">{{ system_statistics.new_users_last_week }}</div><div class="stat-tile__label">New This Week</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns: 7fr 5fr;">
+    <div class="stack gap-4">
+        <div class="card">
+            <div class="card-header"><p class="card-title">Users by Role</p></div>
+            <div class="card-body">
+                {% if not system_statistics.users_by_role %}
+                <div style="text-align:center; padding:1.5rem; color:var(--slate-400);">No users found.</div>
+                {% else %}
+                <div class="stack gap-2">
+                    {% for row in system_statistics.users_by_role %}
+                    <div style="display:flex; justify-content:space-between; padding:0.5rem 0.25rem; border-bottom:1px solid var(--slate-100);">
+                        <span class="text-sm">{{ row.role|role_label }}</span>
+                        <span class="badge badge-neutral">{{ row.count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><p class="card-title">Department Distribution</p></div>
+            <div class="card-body">
+                {% if not user_statistics.department_distribution %}
+                <div style="text-align:center; padding:1.5rem; color:var(--slate-400);">No department data yet.</div>
+                {% else %}
+                <div class="table-wrap" style="border:none;">
+                    <table class="data-table">
+                        <thead><tr><th>Department</th><th style="text-align:center;">Students</th><th style="text-align:center;">Lecturers</th></tr></thead>
+                        <tbody>
+                            {% for row in user_statistics.department_distribution %}
+                            <tr><td>{{ row.department }}</td><td style="text-align:center;">{{ row.students }}</td><td style="text-align:center;">{{ row.lecturers }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="stack gap-4">
+        <div class="card">
+            <div class="card-header"><p class="card-title">System Health</p></div>
+            <div class="card-body">
+                <span class="badge {% if system_health.overall_status == 'critical' %}badge-danger{% elif system_health.overall_status == 'warning' %}badge-warning{% else %}badge-success{% endif %}" style="margin-bottom:1rem; display:inline-block;">
+                    {{ system_health.overall_status|title }}
+                </span>
+                {% if not system_health.checks %}
+                <p class="text-sm text-muted">No issues detected.</p>
+                {% else %}
+                <div class="stack gap-2">
+                    {% for check in system_health.checks %}
+                    <div class="alert {% if check.status == 'critical' %}alert-danger{% elif check.status == 'warning' %}alert-warning{% else %}alert-info{% endif %}" style="padding:0.65rem 0.85rem; font-size:0.8125rem;">
+                        {{ check.message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><p class="card-title">Recent Accounts (24h)</p></div>
+            <div class="card-body">
+                {% if not recent_activities %}
+                <div style="text-align:center; padding:1.5rem; color:var(--slate-400);">No new accounts in the last 24 hours.</div>
+                {% else %}
+                <div class="stack gap-2">
+                    {% for activity in recent_activities %}
+                    <div style="padding:0.5rem 0.25rem; border-bottom:1px solid var(--slate-100);">
+                        <p class="text-sm" style="font-weight:600;">{{ activity.title }}</p>
+                        <p class="text-xs text-muted">{{ activity.details }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><p class="card-title">Quick Actions</p></div>
+            <div class="card-body stack gap-3">
+                <a href="{% url 'portal:ict_register_student' %}" class="btn btn-outline" style="justify-content:flex-start;">Register Student</a>
+                <a href="{% url 'portal:ict_staff_accounts' %}" class="btn btn-outline" style="justify-content:flex-start;">Create Staff Account</a>
+                <a href="{% url 'portal:ict_user_management' %}" class="btn btn-outline" style="justify-content:flex-start;">User Management</a>
+                <a href="{% url 'portal:ict_system_config' %}" class="btn btn-outline" style="justify-content:flex-start;">System Config</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

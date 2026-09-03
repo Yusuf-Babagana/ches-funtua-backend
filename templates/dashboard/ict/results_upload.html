@@ -1,0 +1,56 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Bulk Results Upload{% endblock %}
+{% block page_subtitle %}Import historical or paper-record results from a CSV file.{% endblock %}
+
+{% block dashboard_content %}
+<div class="alert alert-warning" style="margin-bottom:1.5rem;">
+    Imported grades land as <strong>draft</strong> and still go through the normal HOD &rarr; Exam Officer &rarr;
+    Registrar review before they're published to students &mdash; this is a bulk data-entry shortcut, not a way to
+    skip result approval.
+</div>
+
+<div class="card" style="max-width:34rem; margin-bottom:1.5rem;">
+    <div class="card-header">
+        <p class="card-title">CSV Format</p>
+        <p class="card-description">One column named "Name" (matched against students by full name), plus one column per course code (e.g. "CHE 221") holding the score.</p>
+    </div>
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="field">
+                <label>Session</label>
+                <input type="text" name="session" placeholder="2025/2026" required>
+            </div>
+            <div class="field">
+                <label>Results File (.csv)</label>
+                <input type="file" name="file" accept=".csv" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block btn-lg">Upload &amp; Import</button>
+        </form>
+    </div>
+</div>
+
+{% if results %}
+<div class="card">
+    <div class="card-header"><p class="card-title">Import Results</p></div>
+    <div class="card-body">
+        <div class="grid grid-3" style="margin-bottom:1rem;">
+            <div class="stat-tile"><div class="stat-tile__value" style="color:var(--success);">{{ results.processed }}</div><div class="stat-tile__label">Processed</div></div>
+            <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ results.skipped|length }}</div><div class="stat-tile__label">Skipped (no match)</div></div>
+            <div class="stat-tile"><div class="stat-tile__value" style="color:var(--danger);">{{ results.errors|length }}</div><div class="stat-tile__label">Errors</div></div>
+        </div>
+        {% if results.skipped %}
+        <p class="text-sm" style="font-weight:600; margin-bottom:0.4rem;">Skipped (name not found):</p>
+        <p class="text-xs text-muted" style="margin-bottom:1rem;">{{ results.skipped|join:", " }}</p>
+        {% endif %}
+        {% if results.errors %}
+        <p class="text-sm" style="font-weight:600; margin-bottom:0.4rem;">Errors:</p>
+        <ul class="text-xs text-muted" style="margin:0; padding-left:1.25rem;">
+            {% for err in results.errors %}<li>{{ err }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

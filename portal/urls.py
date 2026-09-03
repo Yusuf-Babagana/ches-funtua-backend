@@ -2,7 +2,7 @@ from django.urls import path
 
 from . import (
     views, views_bursar, views_desk_officer, views_exam_officer, views_hod,
-    views_lecturer, views_registrar, views_student,
+    views_ict, views_lecturer, views_registrar, views_student,
 )
 
 app_name = 'portal'
@@ -113,7 +113,18 @@ urlpatterns = [
     path('dashboard/desk-officer/support/<int:thread_id>/send/', views_desk_officer.support_thread_send, name='do_support_thread_send'),
     path('dashboard/desk-officer/support/<int:thread_id>/close/', views_desk_officer.support_close_thread, name='do_support_close_thread'),
 
+    # --- ICT (Phase 10 -- fully migrated; the old frontend's ICT pages
+    #     were mostly genuine, but two backend gaps were closed in this
+    #     same phase -- see portal/services_ict.py) ---
+    path('dashboard/ict/', views_ict.dashboard, name='dashboard_ict'),
+    path('dashboard/ict/register-student/', views_ict.register_student, name='ict_register_student'),
+    path('dashboard/ict/staff-accounts/', views_ict.staff_accounts, name='ict_staff_accounts'),
+    path('dashboard/ict/results-upload/', views_ict.results_upload, name='ict_results_upload'),
+    path('dashboard/ict/system-config/', views_ict.system_config, name='ict_system_config'),
+    path('dashboard/ict/users/', views_ict.user_management, name='ict_user_management'),
+    path('dashboard/ict/users/<int:user_id>/reset-password/', views_ict.reset_password, name='ict_reset_password'),
+    path('dashboard/ict/users/<int:user_id>/toggle-active/', views_ict.toggle_active, name='ict_toggle_active'),
+
     # --- Other roles (placeholders, migrated in later phases) ---
-    path('dashboard/ict/', views.dashboard_ict, name='dashboard_ict'),
     path('dashboard/super-admin/', views.dashboard_super_admin, name='dashboard_super_admin'),
 ]

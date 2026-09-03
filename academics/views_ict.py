@@ -4,13 +4,29 @@ import re
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from django.utils import timezone
 from users.models import Student
+from users.permissions import IsICTOfficer
 from academics.models import Course, Grade, Enrollment
 
 class ResultUploadView(APIView):
+    """
+    Bulk CSV result import for ICT (e.g. catching up historical/paper
+    records). Two fixes vs. the original: (1) this had NO permission
+    class at all -- any authenticated user, including a student, could
+    POST a CSV and overwrite grades; now ICT/super-admin only. (2) it
+    used to set status='published' directly, force-publishing unreviewed
+    grades straight to students and completely bypassing the standard
+    draft -> submitted -> hod_approved -> verified -> published workflow
+    (academics/views_result_workflow.py). It now imports as 'draft' so
+    imported grades go through the same HOD/Exam-Officer/Registrar review
+    as any lecturer-entered grade -- see college_cms_migration_inventory.md
+    S3.9 and S6 item 15 for the original finding.
+    """
     parser_classes = [MultiPartParser]
+    permission_classes = [IsAuthenticated, IsICTOfficer]
 
     def post(self, request):
         file = request.FILES.get('file')
@@ -67,7 +83,7 @@ class ResultUploadView(APIView):
 
                             Grade.objects.update_or_create(
                                 student=student, course=course, session=session, semester=semester,
-                                defaults={'enrollment': enrollment, 'score': score, 'status': 'published'}
+                                defaults={'enrollment': enrollment, 'score': score, 'status': 'draft'}
                             )
                         except Course.DoesNotExist:
                             results["errors"].append(f"Course {course_code} not found")

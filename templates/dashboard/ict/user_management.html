@@ -1,0 +1,77 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}User Management{% endblock %}
+{% block page_subtitle %}Search users, reset passwords, and activate/deactivate accounts.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .reset-form { display:flex; gap:0.4rem; align-items:center; }
+    .reset-form input { width:9rem; padding:0.35rem 0.5rem; border:1px solid var(--slate-200); border-radius:var(--radius-sm); font-size:0.8125rem; }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<form method="get" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem;">
+    <input type="text" name="q" placeholder="Search name, email, matric, or staff ID..." value="{{ query }}"
+           style="flex:1; min-width:14rem; padding:0.6rem 0.85rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+    <select name="role" onchange="this.form.submit()" style="padding:0.6rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+        <option value="">All Roles</option>
+        {% for value, label in role_choices %}
+        <option value="{{ value }}" {% if filters.role == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <select name="active" onchange="this.form.submit()" style="padding:0.6rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+        <option value="">All Status</option>
+        <option value="active" {% if filters.active == "active" %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if filters.active == "inactive" %}selected{% endif %}>Inactive</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Filter</button>
+</form>
+
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if not users %}
+        <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No users found.</div>
+        {% else %}
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Reset Password</th><th style="text-align:right;">Actions</th></tr></thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>
+                            <p style="font-weight:600;">{{ u.get_full_name }}</p>
+                            <p class="text-xs text-muted">{{ u.email }}</p>
+                        </td>
+                        <td><span class="badge badge-neutral">{{ u.role|role_label }}</span></td>
+                        <td><span class="badge {% if u.is_active %}badge-success{% else %}badge-danger{% endif %}">{% if u.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+                        <td>
+                            <form method="post" action="{% url 'portal:ict_reset_password' u.id %}" class="reset-form" data-confirm="Reset the password for {{ u.email }}?">
+                                {% csrf_token %}
+                                <input type="text" name="new_password" placeholder="New password" minlength="8" required>
+                                <button type="submit" class="btn btn-outline btn-sm">Reset</button>
+                            </form>
+                        </td>
+                        <td style="text-align:right;">
+                            {% if u.id != request.user.id %}
+                            <form method="post" action="{% url 'portal:ict_toggle_active' u.id %}"
+                                  data-confirm="{% if u.is_active %}Deactivate{% else %}Activate{% endif %} {{ u.email }}?">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if u.is_active %}btn-outline{% else %}btn-primary{% endif %}">
+                                    {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="text-xs text-muted">You</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

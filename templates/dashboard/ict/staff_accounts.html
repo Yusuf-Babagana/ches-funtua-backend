@@ -1,0 +1,150 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}Staff Account Creation{% endblock %}
+{% block page_subtitle %}Provision Lecturer, HOD, or administrative staff accounts.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tabs { display:flex; gap:0.5rem; border-bottom:1px solid var(--slate-200); margin-bottom:1.5rem; }
+    .tab-btn { padding:0.65rem 1rem; font-weight:600; font-size:0.875rem; color:var(--slate-500); border-bottom:2px solid transparent; cursor:pointer; background:none; border-left:none; border-right:none; border-top:none; }
+    .tab-btn.is-active { color:var(--teal-700); border-bottom-color:var(--teal-600); }
+    .tab-panel { display:none; }
+    .tab-panel.is-active { display:block; }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+{% if credentials %}
+<div class="alert alert-success" style="margin-bottom:1.5rem;">
+    <div>
+        <strong>Account created.</strong> Relay these credentials &mdash; they are shown only once.
+        <div style="margin-top:0.5rem; display:flex; gap:1.5rem; flex-wrap:wrap;">
+            <span class="mono">Email: <strong>{{ credentials.user.email }}</strong></span>
+            <span class="mono">Password: <strong>{{ credentials.password }}</strong></span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="tabs">
+    <button type="button" class="tab-btn is-active" data-tab="lecturer">Lecturer</button>
+    <button type="button" class="tab-btn" data-tab="hod">HOD</button>
+    <button type="button" class="tab-btn" data-tab="staff">Admin Staff</button>
+</div>
+
+<div class="tab-panel is-active" id="tab-lecturer">
+    <div class="card" style="max-width:36rem;">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="role" value="lecturer">
+                <div class="grid grid-2">
+                    <div class="field"><label>First Name</label><input type="text" name="first_name" required></div>
+                    <div class="field"><label>Last Name</label><input type="text" name="last_name" required></div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="field"><label>Email</label><input type="email" name="email" required></div>
+                    <div class="field"><label>Phone</label><input type="text" name="phone"></div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="field">
+                        <label>Department</label>
+                        <select name="department_id" required>
+                            <option value="">Select department...</option>
+                            {% for dept in departments %}<option value="{{ dept.id }}">{{ dept.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Designation</label>
+                        <select name="designation">
+                            {% for value, label in designations %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">Create Lecturer Account</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="tab-panel" id="tab-hod">
+    <div class="card" style="max-width:36rem;">
+        <div class="card-body">
+            <p class="text-xs text-muted" style="margin-bottom:1rem;">
+                Creates a Lecturer account and immediately assigns them as Head of the selected department.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="role" value="hod">
+                <div class="grid grid-2">
+                    <div class="field"><label>First Name</label><input type="text" name="first_name" required></div>
+                    <div class="field"><label>Last Name</label><input type="text" name="last_name" required></div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="field"><label>Email</label><input type="email" name="email" required></div>
+                    <div class="field"><label>Phone</label><input type="text" name="phone"></div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="field">
+                        <label>Department (will be headed by this account)</label>
+                        <select name="department_id" required>
+                            <option value="">Select department...</option>
+                            {% for dept in departments %}<option value="{{ dept.id }}">{{ dept.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Designation</label>
+                        <select name="designation">
+                            {% for value, label in designations %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">Create HOD Account</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="tab-panel" id="tab-staff">
+    <div class="card" style="max-width:36rem;">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="field">
+                    <label>Role</label>
+                    <select name="role" required>
+                        {% for role in staff_roles %}<option value="{{ role }}">{{ role|role_label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-2">
+                    <div class="field"><label>First Name</label><input type="text" name="first_name" required></div>
+                    <div class="field"><label>Last Name</label><input type="text" name="last_name" required></div>
+                </div>
+                <div class="grid grid-2">
+                    <div class="field"><label>Email</label><input type="email" name="email" required></div>
+                    <div class="field"><label>Phone</label><input type="text" name="phone"></div>
+                </div>
+                <div class="field">
+                    <label>Position (optional)</label>
+                    <input type="text" name="position" placeholder="e.g. Administrative Officer">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg">Create Staff Account</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('is-active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('is-active');
+        });
+    });
+</script>
+{% endblock %}

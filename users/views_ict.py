@@ -432,7 +432,19 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     def reset_password(self, request, pk=None):
         """Reset user password (ICT officer function)"""
         user = self.get_object()
-        
+
+        # An ICT officer (not a super-admin themselves) could otherwise
+        # reset a super-admin's password -- CanManageAllUsers/
+        # CanResetPasswords exist in .permissions specifically to prevent
+        # this but were never wired to any view (see
+        # college_cms_migration_inventory.md S1.5). Closed here directly
+        # rather than relying on those unused permission classes.
+        if user.role == 'super-admin' and request.user.role != 'super-admin':
+            return Response(
+                {'error': 'ICT officers cannot reset a Super Admin account\'s password.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = UserPasswordResetSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -465,7 +477,14 @@ class UserManagementViewSet(viewsets.ModelViewSet):
                 {'error': 'You cannot deactivate your own account'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        # Same super-admin protection as reset_password above.
+        if user.role == 'super-admin' and request.user.role != 'super-admin':
+            return Response(
+                {'error': 'ICT officers cannot activate/deactivate a Super Admin account.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         user.is_active = not user.is_active
         user.save()
         
@@ -530,8 +549,13 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         # Remove request user from list to prevent self-modification
         if request.user.id in user_ids:
             user_ids.remove(request.user.id)
-        
+
         users = User.objects.filter(id__in=user_ids)
+        # Same super-admin protection as reset_password/toggle_active_status
+        # above -- an ICT officer's bulk action must never touch a
+        # Super Admin account (activate, deactivate, OR delete).
+        if request.user.role != 'super-admin':
+            users = users.exclude(role='super-admin')
         
         if action == 'activate':
             users.update(is_active=True)
