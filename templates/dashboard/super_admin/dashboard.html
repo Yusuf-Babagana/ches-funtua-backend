@@ -1,0 +1,46 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Super Admin Dashboard{% endblock %}
+{% block page_subtitle %}Academic structure: courses, semesters, and levels.{% endblock %}
+
+{% block dashboard_content %}
+<div class="alert alert-info" style="margin-bottom:1.5rem;">
+    User management, staff provisioning, and department administration live on the ICT pages (linked in the sidebar) --
+    your Super Admin account has full access to all of them.
+</div>
+
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value">{{ department_count }}</div><div class="stat-tile__label">Departments</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--teal-600);">{{ course_count }}</div><div class="stat-tile__label">Courses</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ courses_without_lecturer }}</div><div class="stat-tile__label">Courses Without Lecturer</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ departments_without_hod }}</div><div class="stat-tile__label">Departments Without HOD</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns: 7fr 5fr;">
+    <div class="card">
+        <div class="card-header"><p class="card-title">Current Session</p></div>
+        <div class="card-body">
+            {% if current_semester %}
+            <div class="grid grid-2">
+                <div><p class="text-xs text-muted" style="text-transform:uppercase;">Session</p><p style="font-weight:700;">{{ current_semester.session }}</p></div>
+                <div><p class="text-xs text-muted" style="text-transform:uppercase;">Semester</p><p style="font-weight:700;">{{ current_semester.get_semester_display }}</p></div>
+                <div><p class="text-xs text-muted" style="text-transform:uppercase;">Registration</p><p style="font-weight:700;">{% if current_semester.is_registration_active %}Open{% else %}Closed{% endif %}</p></div>
+                <div><p class="text-xs text-muted" style="text-transform:uppercase;">Ends</p><p style="font-weight:700;">{{ current_semester.end_date|date:"M j, Y" }}</p></div>
+            </div>
+            {% else %}
+            <div class="alert alert-danger">No current semester set. Use System Tools to start a new session.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><p class="card-title">Quick Actions</p></div>
+        <div class="card-body stack gap-3">
+            <a href="{% url 'portal:sa_courses' %}" class="btn btn-outline" style="justify-content:flex-start;">Manage Courses</a>
+            <a href="{% url 'portal:sa_semesters' %}" class="btn btn-outline" style="justify-content:flex-start;">Manage Semesters</a>
+            <a href="{% url 'portal:sa_level_config' %}" class="btn btn-outline" style="justify-content:flex-start;">Level Configuration</a>
+            <a href="{% url 'portal:sa_system_tools' %}" class="btn btn-outline" style="justify-content:flex-start;">System Tools</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

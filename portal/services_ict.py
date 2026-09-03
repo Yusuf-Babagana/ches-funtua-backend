@@ -477,3 +477,41 @@ def create_department(name, code, description=''):
         return None, f'Department code {code} already exists.'
     department = Department.objects.create(name=name, code=code, description=description or '')
     return department, None
+
+
+def delete_department(department_id):
+    """
+    Not in the old ICT frontend at all -- added here (Phase 11, Super
+    Admin) as the department-management story's missing piece, since
+    this phase routes Super Admin's department management through this
+    same page rather than building a separate one. Deliberately more
+    conservative than the old Next.js Super Admin Departments page,
+    which let a department be deleted with just a client-side confirm
+    dialog despite Course.department being CASCADE -- silently deleting
+    every course in that department along with it. Blocked here
+    server-side whenever the department still has any courses, students,
+    or lecturers attached, so a destructive cascade can't happen by
+    accident; the caller has to clear those out (or reassign them) first.
+    """
+    try:
+        department = Department.objects.get(id=department_id)
+    except Department.DoesNotExist:
+        return False, 'Department not found.'
+
+    from academics.models import Course
+    blockers = []
+    student_count = Student.objects.filter(department=department).count()
+    lecturer_count = Lecturer.objects.filter(department=department).count()
+    course_count = Course.objects.filter(department=department).count()
+    if student_count:
+        blockers.append(f'{student_count} student(s)')
+    if lecturer_count:
+        blockers.append(f'{lecturer_count} lecturer(s)')
+    if course_count:
+        blockers.append(f'{course_count} course(s)')
+    if blockers:
+        return False, f'Cannot delete {department.name} -- it still has {", ".join(blockers)}. Reassign or remove them first.'
+
+    name = department.name
+    department.delete()
+    return True, f'Department {name} deleted.'

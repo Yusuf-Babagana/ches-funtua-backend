@@ -98,6 +98,15 @@
                         </div>
                         <button type="submit" class="btn btn-outline btn-sm">Save Changes</button>
                     </form>
+                    {% if request.user.role == 'super-admin' %}
+                    <form method="post" style="margin-top:0.75rem;"
+                          data-confirm="Permanently delete {{ row.department.name }}? This only works if it has no students, lecturers, or courses left.">
+                        {% csrf_token %}
+                        <input type="hidden" name="form" value="delete_department">
+                        <input type="hidden" name="department_id" value="{{ row.department.id }}">
+                        <button type="submit" class="btn btn-sm" style="color:var(--danger); border:1px solid var(--danger-border); background:var(--danger-bg);">Delete Department</button>
+                    </form>
+                    {% endif %}
                 </div>
             </details>
             {% endfor %}

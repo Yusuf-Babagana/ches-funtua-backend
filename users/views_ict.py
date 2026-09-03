@@ -293,7 +293,23 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         elif self.action in ['update', 'partial_update']:
             return UserUpdateSerializer
         return UserSerializer
-    
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        ModelViewSet's default destroy() had no guard at all -- an ICT
+        officer could DELETE a Super Admin account outright through this
+        endpoint, completely bypassing the super-admin protection added
+        to reset_password/toggle_active_status/bulk_actions below (Phase
+        10). Closed the same way those three were.
+        """
+        user = self.get_object()
+        if user.role == 'super-admin' and request.user.role != 'super-admin':
+            return Response(
+                {'error': 'ICT officers cannot delete a Super Admin account.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
+
     @action(detail=False, methods=['get'])
     def user_statistics(self, request):
         """Get detailed user statistics"""
@@ -531,9 +547,20 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_actions(self, request):
         """Perform bulk actions on users"""
-        user_ids = request.data.get('user_ids', [])
+        # See the identical fix + explanation in users/views.py's
+        # UserViewSet.bulk_actions -- request.data.get('user_ids', [])
+        # silently collapses a multi-value form/multipart field to its
+        # LAST value only.
+        if hasattr(request.data, 'getlist'):
+            user_ids = request.data.getlist('user_ids')
+        else:
+            user_ids = request.data.get('user_ids', [])
+        try:
+            user_ids = [int(uid) for uid in user_ids]
+        except (TypeError, ValueError):
+            return Response({'error': 'user_ids must be a list of integer ids'}, status=status.HTTP_400_BAD_REQUEST)
         action = request.data.get('action')
-        
+
         if not user_ids or not action:
             return Response(
                 {'error': 'user_ids and action are required'},

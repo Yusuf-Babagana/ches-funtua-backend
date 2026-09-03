@@ -2,7 +2,7 @@ from django.urls import path
 
 from . import (
     views, views_bursar, views_desk_officer, views_exam_officer, views_hod,
-    views_ict, views_lecturer, views_registrar, views_student,
+    views_ict, views_lecturer, views_registrar, views_student, views_super_admin,
 )
 
 app_name = 'portal'
@@ -125,6 +125,15 @@ urlpatterns = [
     path('dashboard/ict/users/<int:user_id>/reset-password/', views_ict.reset_password, name='ict_reset_password'),
     path('dashboard/ict/users/<int:user_id>/toggle-active/', views_ict.toggle_active, name='ict_toggle_active'),
 
-    # --- Other roles (placeholders, migrated in later phases) ---
-    path('dashboard/super-admin/', views.dashboard_super_admin, name='dashboard_super_admin'),
+    # --- Super Admin (Phase 11 -- final role-specific phase. Only the
+    #     genuinely Super-Admin-exclusive pieces are built here; user and
+    #     department management link to the existing ICT pages instead
+    #     of duplicating them -- see portal/services_super_admin.py) ---
+    path('dashboard/super-admin/', views_super_admin.dashboard, name='dashboard_super_admin'),
+    path('dashboard/super-admin/courses/', views_super_admin.courses, name='sa_courses'),
+    path('dashboard/super-admin/semesters/', views_super_admin.semesters, name='sa_semesters'),
+    path('dashboard/super-admin/level-config/', views_super_admin.level_config, name='sa_level_config'),
+    path('dashboard/super-admin/system-tools/', views_super_admin.system_tools, name='sa_system_tools'),
+    path('dashboard/super-admin/system-tools/start-session/', views_super_admin.start_new_session, name='sa_start_new_session'),
+    path('dashboard/super-admin/system-tools/promote-students/', views_super_admin.promote_students, name='sa_promote_students'),
 ]

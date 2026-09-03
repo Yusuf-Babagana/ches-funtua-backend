@@ -163,6 +163,16 @@ def system_config(request):
                 messages.error(request, error)
             else:
                 messages.success(request, f'Department {department.name} updated.')
+        elif form == 'delete_department':
+            # Genuinely destructive (cascades to courses) -- reserved for
+            # Super Admin even though ICT can reach every other action on
+            # this page, same pattern as create_staff_account's
+            # super-admin-only role.
+            if request.user.role != 'super-admin':
+                messages.error(request, 'Only a Super Admin can delete a department.')
+            else:
+                ok, message = svc.delete_department(request.POST.get('department_id'))
+                (messages.success if ok else messages.error)(request, message)
         return redirect('portal:ict_system_config')
 
     return render(request, 'dashboard/ict/system_config.html', {

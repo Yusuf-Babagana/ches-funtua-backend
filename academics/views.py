@@ -10,6 +10,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count # Import Count
 
+from users.permissions import IsSuperAdmin
+
 from .models import (
     Department, Course, Enrollment, Grade,
     Attendance, Semester, StudentAcademicRecord
@@ -135,11 +137,22 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         ).all()
 
     def get_permissions(self):
+        # list/retrieve stay public (unchanged -- other consumers may rely
+        # on this). Writes (create/update/destroy) used to be open to any
+        # authenticated user, including a student -- migration inventory
+        # flagged this repeatedly (S1.3/S6 item 15) and it's directly the
+        # endpoint the Super Admin Departments page's own CRUD uses
+        # (academics/views_admin.py's SuperAdminDepartmentViewSet is a
+        # separate, already-gated duplicate for HOD assignment only).
+        # Tightened to match that same IsSuperAdmin boundary rather than
+        # leaving a second, looser door open to the same data.
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        if self.action == 'my_department':
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsSuperAdmin()]
 
-    
+
 
     @action(detail=False, methods=['get'])
     def my_department(self, request):
@@ -198,9 +211,17 @@ class CourseViewSet(viewsets.ModelViewSet):
     ordering_fields = ['code', 'title', 'credits']
 
     def get_permissions(self):
+        # Same tightening as DepartmentViewSet.get_permissions above, for
+        # the same reason -- this is the endpoint the Super Admin Courses
+        # page's own CRUD uses (SuperAdminCourseViewSet is a separate,
+        # already-gated duplicate for lecturer assignment only). The
+        # read-only `students` sub-action stays open to any authenticated
+        # user as before -- only create/update/destroy are restricted.
         if self.action in ['list', 'retrieve']:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        if self.action == 'students':
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsSuperAdmin()]
 
     @action(detail=True, methods=['get'])
     def students(self, request, pk=None):

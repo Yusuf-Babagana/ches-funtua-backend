@@ -377,6 +377,23 @@ class AuthViewSet(viewsets.GenericViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+def _would_remove_last_active_super_admin(excluded_user_ids):
+    """
+    True if deactivating/deleting the given user id(s) would leave zero
+    active Super Admin accounts. CanManageUsers already restricts every
+    write action on UserViewSet to super-admin actors only, so the risk
+    here isn't one role reaching into another (that's the ICT-vs-super
+    -admin gap already closed in users/views_ict.py) -- it's a super
+    -admin session (compromised, careless bulk action, or otherwise)
+    being able to deactivate/delete every OTHER super-admin account in
+    one call and lock the whole system out of administrative access.
+    Guards deactivate/perform_destroy/bulk_actions below; does not apply
+    to activate or reset_password, which don't reduce admin capacity.
+    """
+    remaining = User.objects.filter(role='super-admin', is_active=True).exclude(id__in=excluded_user_ids).count()
+    return remaining == 0
+
+
 class UserViewSet(viewsets.ModelViewSet):
     """User CRUD operations with enhanced user management"""
     queryset = User.objects.all().select_related(
@@ -469,7 +486,13 @@ class UserViewSet(viewsets.ModelViewSet):
                 {'error': 'You cannot deactivate your own account'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        if user.role == 'super-admin' and _would_remove_last_active_super_admin([user.id]):
+            return Response(
+                {'error': 'Cannot deactivate the last active Super Admin account.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         user.is_active = False
         user.save()
         
@@ -527,7 +550,21 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_actions(self, request):
         """Bulk user actions (activate, deactivate, delete)"""
-        user_ids = request.data.get('user_ids', [])
+        # request.data.get('user_ids', []) silently collapses a
+        # multi-value form/multipart field to just its LAST value (a
+        # QueryDict quirk) -- a real submission of 2+ ids would then feed
+        # a single int/string into the deactivate/delete logic below
+        # instead of the intended list. getlist() (available on
+        # QueryDict-backed multipart/form data) is used when present;
+        # JSON bodies already give a real list via plain .get().
+        if hasattr(request.data, 'getlist'):
+            user_ids = request.data.getlist('user_ids')
+        else:
+            user_ids = request.data.get('user_ids', [])
+        try:
+            user_ids = [int(uid) for uid in user_ids]
+        except (TypeError, ValueError):
+            return Response({'error': 'user_ids must be a list of integer ids'}, status=status.HTTP_400_BAD_REQUEST)
         action_type = request.data.get('action')
         
         if not user_ids or not action_type:
@@ -545,6 +582,12 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        if action_type in ('deactivate', 'delete') and _would_remove_last_active_super_admin(user_ids):
+            return Response(
+                {'error': 'This action would leave zero active Super Admin accounts and was blocked.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if action_type == 'activate':
             users.update(is_active=True)
             message = f'{users.count()} users activated successfully'
@@ -688,7 +731,10 @@ class UserViewSet(viewsets.ModelViewSet):
         """Override delete to prevent self-deletion"""
         if instance == self.request.user:
             raise serializers.ValidationError("You cannot delete your own account")
-        
+
+        if instance.role == 'super-admin' and _would_remove_last_active_super_admin([instance.id]):
+            raise serializers.ValidationError("Cannot delete the last active Super Admin account.")
+
         logger.info(f"✅ User deleted: {instance.email} by {self.request.user.email}")
         instance.delete()
 

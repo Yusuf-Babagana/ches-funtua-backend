@@ -4,9 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
-from .decorators import role_required
 from .forms import LoginForm
-from .roles import ROLE_DASHBOARD_URL_NAME, get_nav_items, get_role_profile
+from .roles import ROLE_DASHBOARD_URL_NAME
 
 
 def landing(request):
@@ -73,22 +72,10 @@ def dashboard_root(request):
     return redirect(url_name)
 
 
-def _placeholder_dashboard(request, role, title, url_name):
-    """
-    Temporary stand-in for a role's dashboard landing page. Phases 3-11
-    replace each of these with the real, data-backed dashboard for that
-    role; this exists only so the foundation (auth + role gating + shared
-    layout) is provably working end-to-end for all 9 roles before any real
-    page is built on top of it.
-    """
-    return render(request, 'dashboard/placeholder.html', {
-        'page_title': title,
-        'active_role': role,
-        'profile': get_role_profile(request.user),
-        'nav_items': get_nav_items(role, active_url_name=url_name),
-    })
-
-
-@role_required('super-admin')
-def dashboard_super_admin(request):
-    return _placeholder_dashboard(request, 'super-admin', 'Super Admin Dashboard', 'portal:dashboard_super_admin')
+# _placeholder_dashboard (and the per-role dashboard_* views that used
+# it) has been fully retired -- Phase 11 (Super Admin) was the last role
+# still on the placeholder stub; every one of the 9 roles now has a
+# real, data-backed dashboard (see views_student.py, views_lecturer.py,
+# views_hod.py, views_registrar.py, views_bursar.py,
+# views_exam_officer.py, views_desk_officer.py, views_ict.py,
+# views_super_admin.py).

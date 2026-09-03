@@ -1,0 +1,78 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Semesters &amp; Sessions{% endblock %}
+{% block page_subtitle %}Full CRUD over academic sessions. Only one semester can be current at a time.{% endblock %}
+
+{% block dashboard_content %}
+<div class="card" style="max-width:34rem; margin-bottom:1.5rem;">
+    <div class="card-header"><p class="card-title">Create Semester</p></div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="form" value="create">
+            <div class="grid grid-2">
+                <div class="field"><label>Session</label><input type="text" name="session" placeholder="2025/2026" required></div>
+                <div class="field">
+                    <label>Semester</label>
+                    <select name="semester">
+                        <option value="first">First</option>
+                        <option value="second">Second</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-2">
+                <div class="field"><label>Start Date</label><input type="date" name="start_date" required></div>
+                <div class="field"><label>End Date</label><input type="date" name="end_date" required></div>
+            </div>
+            <div class="field"><label>Registration Deadline</label><input type="date" name="registration_deadline" required></div>
+            <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                <input type="checkbox" name="is_current"> Make this the current semester
+            </label>
+            <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+                <input type="checkbox" name="is_registration_active"> Registration open
+            </label>
+            <button type="submit" class="btn btn-primary btn-block btn-lg">Create Semester</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if not semesters %}
+        <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No semesters found.</div>
+        {% else %}
+        {% for sem in semesters %}
+        <details style="border-bottom:1px solid var(--slate-100);">
+            <summary style="cursor:pointer; padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center;">
+                <span>
+                    <strong>{{ sem.session }} &mdash; {{ sem.get_semester_display }}</strong>
+                    {% if sem.is_current %}<span class="badge badge-success" style="margin-left:0.5rem;">Current</span>{% endif %}
+                    {% if sem.is_registration_active %}<span class="badge badge-info" style="margin-left:0.4rem;">Registration Open</span>{% endif %}
+                </span>
+                <span class="text-xs text-muted">{{ sem.start_date|date:"M j, Y" }} &ndash; {{ sem.end_date|date:"M j, Y" }}</span>
+            </summary>
+            <div style="padding:0 1.25rem 1.25rem;">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="form" value="update">
+                    <input type="hidden" name="semester_id" value="{{ sem.id }}">
+                    <div class="grid grid-2">
+                        <div class="field"><label>Start Date</label><input type="date" name="start_date" value="{{ sem.start_date|date:'Y-m-d' }}" required></div>
+                        <div class="field"><label>End Date</label><input type="date" name="end_date" value="{{ sem.end_date|date:'Y-m-d' }}" required></div>
+                    </div>
+                    <div class="field"><label>Registration Deadline</label><input type="date" name="registration_deadline" value="{{ sem.registration_deadline|date:'Y-m-d' }}" required></div>
+                    <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                        <input type="checkbox" name="is_current" {% if sem.is_current %}checked{% endif %}> Current semester
+                    </label>
+                    <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+                        <input type="checkbox" name="is_registration_active" {% if sem.is_registration_active %}checked{% endif %}> Registration open
+                    </label>
+                    <button type="submit" class="btn btn-outline btn-sm">Save Changes</button>
+                </form>
+            </div>
+        </details>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
