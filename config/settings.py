@@ -8,16 +8,38 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security Settings
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production')
+_INSECURE_DEFAULT_SECRET_KEY = 'django-insecure-change-this-in-production'
+SECRET_KEY = os.environ.get('SECRET_KEY', _INSECURE_DEFAULT_SECRET_KEY)
 
 # DEBUG: Default to True locally, False if set to 'False' in env
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
+if not DEBUG and SECRET_KEY == _INSECURE_DEFAULT_SECRET_KEY:
+    # Fails loudly instead of silently running production with a
+    # publicly-known key -- only fires when DEBUG=False, so local dev is
+    # completely unaffected. Generate a real one with, e.g.:
+    #   python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        'SECRET_KEY environment variable must be set to a real, private value when DEBUG=False.'
+    )
+
 # Allowed Hosts: Includes localhost and your PythonAnywhere domain
 ALLOWED_HOSTS = os.environ.get(
-    'ALLOWED_HOSTS', 
+    'ALLOWED_HOSTS',
     'localhost,127.0.0.1,funtua.pythonanywhere.com'
 ).split(',')
+
+# PythonAnywhere (like most PaaS hosts) terminates SSL at its proxy and
+# forwards plain HTTP to this app -- without telling Django that,
+# request.is_secure() sees every request as insecure HTTP even when the
+# visitor is on https://. That breaks CSRF's same-origin scheme check and
+# makes request.build_absolute_uri() (used for the Paystack payment
+# callback URL, portal/views_student.py) generate http:// links instead
+# of https://. Safe to leave on unconditionally -- it only trusts the
+# header PythonAnywhere itself sets.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
 
 # Application definition
@@ -151,25 +173,48 @@ SIMPLE_JWT = {
 }
 
 # --- CORS & CSRF Settings (CRITICAL FOR PRODUCTION) ---
-
+#
+# The Django-templates portal (this app's own frontend, `portal/`) is
+# served from the same origin as the API, so it needs neither CORS nor
+# CSRF_TRUSTED_ORIGINS to work -- Django's CSRF middleware already
+# handles same-origin form POSTs on its own. These two settings now only
+# matter for genuinely cross-origin API consumers: a mobile app, or any
+# external site calling the JWT API. The previous defaults here pointed
+# at the retired Next.js/Vercel frontend (ches-funtua-frontend.vercel.app)
+# and its local dev server (localhost:3000) -- both gone now that the
+# frontend is this Django app itself. Override via env if a real external
+# consumer needs a specific origin allow-listed.
 CORS_ALLOW_CREDENTIALS = True
 
-# 1. CORS: Who can fetch data? (Frontend Vercel URL + Localhost)
 CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://127.0.0.1:3000,https://ches-funtua-frontend.vercel.app'
+    'https://funtua.pythonanywhere.com'
 ).split(',')
 
-# 2. CSRF: Who can send POST requests? (Frontend Vercel URL + Localhost)
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     'CSRF_TRUSTED_ORIGINS',
-    'http://localhost:3000,https://ches-funtua-frontend.vercel.app'
+    'https://funtua.pythonanywhere.com'
 ).split(',')
 
 
 # For development only - helps if you are testing locally with random ports
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
+
+# --- Production security hardening (DEBUG=False only -- local dev is
+#     unaffected either way) ---
+# Addresses every warning `manage.py check --deploy` raises under DEBUG=
+# False. HSTS is left off by default (opt in via env) rather than forced
+# on: it's browser-cached and hard to safely undo once real visitors have
+# picked it up, so it deserves a deliberate choice at deploy time, not a
+# default baked into source.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '0'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'False') == 'True'
+    SECURE_HSTS_PRELOAD = os.environ.get('SECURE_HSTS_PRELOAD', 'False') == 'True'
 
 
 # Paystack Configuration
