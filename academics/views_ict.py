@@ -14,16 +14,27 @@ from academics.models import Course, Grade, Enrollment
 class ResultUploadView(APIView):
     """
     Bulk CSV result import for ICT (e.g. catching up historical/paper
-    records). Two fixes vs. the original: (1) this had NO permission
-    class at all -- any authenticated user, including a student, could
-    POST a CSV and overwrite grades; now ICT/super-admin only. (2) it
-    used to set status='published' directly, force-publishing unreviewed
-    grades straight to students and completely bypassing the standard
-    draft -> submitted -> hod_approved -> verified -> published workflow
+    records). Fixes vs. the original: (1) this had NO permission class at
+    all -- any authenticated user, including a student, could POST a CSV
+    and overwrite grades; now ICT/super-admin only. (2) it used to set
+    status='published' directly, force-publishing unreviewed grades
+    straight to students and completely bypassing the standard draft ->
+    submitted -> hod_approved -> verified -> published workflow
     (academics/views_result_workflow.py). It now imports as 'draft' so
     imported grades go through the same HOD/Exam-Officer/Registrar review
     as any lecturer-entered grade -- see college_cms_migration_inventory.md
-    S3.9 and S6 item 15 for the original finding.
+    S3.9 and S6 item 15 for the original finding. (3) the semester-detection
+    logic assumed every course-code column header contains a space (e.g.
+    "CHE 101") and did `course_code.split()[1]` -- Course.code is actually
+    stored without a space throughout this project (e.g. "CHE101"), so any
+    real header crashed the whole request with an uncaught IndexError
+    (500), found while writing Phase 12's permanent regression suite.
+    Replaced with a plain digit extraction that works either way. (4) the
+    score parser used `str(score_val).isdigit()`, which is False for any
+    decimal score ("75.5") since "." isn't a digit -- silently zeroing out
+    real scores; replaced with a real float parse. Both (3) and (4) match
+    the equivalent fixes already made in portal/services_ict.py's
+    import_results_csv() so the two implementations don't drift apart.
     """
     parser_classes = [MultiPartParser]
     permission_classes = [IsAuthenticated, IsICTOfficer]
@@ -64,17 +75,20 @@ class ResultUploadView(APIView):
                         score_val = row[col]
                         # Clean score
                         try:
-                            score = float(score_val) if str(score_val).isdigit() else 0
-                        except: score = 0
-                        
+                            score = float(score_val)
+                            if pd.isna(score):
+                                score = 0
+                        except (TypeError, ValueError):
+                            score = 0
+
                         if score == 0: continue
 
                         course_code = re.search(r'([A-Z]{3}\s?\d{3})', col).group(1)
                         try:
                             course = Course.objects.get(code=course_code)
                             # Determine semester from code (even/odd middle digit)
-                            level_digit = course_code.split()[1][0]
-                            semester = "first" if int(course_code.split()[1][1]) % 2 != 0 else "second"
+                            digits = re.sub(r'\D', '', course_code)
+                            semester = "first" if int(digits[1]) % 2 != 0 else "second"
                             
                             enrollment, _ = Enrollment.objects.get_or_create(
                                 student=student, course=course, session=session, semester=semester,
