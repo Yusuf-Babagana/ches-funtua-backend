@@ -1,0 +1,114 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Lecturer Dashboard{% endblock %}
+{% block page_subtitle %}Manage your courses, students, and grades.{% endblock %}
+
+{% block dashboard_content %}
+<details class="card" style="margin-bottom:1.5rem;">
+    <summary style="cursor:pointer; padding:1rem 1.25rem; font-weight:700;">Post Announcement</summary>
+    <div class="card-body" style="border-top:1px solid var(--slate-100);">
+        <p class="text-xs text-muted" style="margin-bottom:0.75rem;">Visible to every student in {{ lecturer.department.name|default:"your department" }} on their dashboard.</p>
+        <form method="post" action="{% url 'portal:lecturer_post_announcement' %}">
+            {% csrf_token %}
+            <div class="grid grid-2">
+                <div class="field">
+                    <label>Title</label>
+                    <input type="text" name="title" required maxlength="150">
+                </div>
+                <div class="field">
+                    <label>Level (optional)</label>
+                    <select name="level">
+                        <option value="">All levels</option>
+                        <option value="100">100 Level</option>
+                        <option value="200">200 Level</option>
+                        <option value="300">300 Level</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label>Message</label>
+                <textarea name="body" rows="3" required></textarea>
+            </div>
+            <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.85rem; font-size:0.875rem;">
+                <input type="checkbox" name="is_pinned"> Pin this announcement
+            </label>
+            <button type="submit" class="btn btn-primary btn-sm">Post</button>
+        </form>
+    </div>
+</details>
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-body" style="display:flex; align-items:center; gap:1.25rem;">
+        <div style="height:4rem; width:4rem; border-radius:999px; background:var(--teal-50); border:1px solid var(--teal-100); display:flex; align-items:center; justify-content:center; color:var(--teal-700); font-weight:800;">
+            {{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}
+        </div>
+        <div>
+            <h2 style="font-size:1.3rem;">{{ request.user.full_name }}</h2>
+            <div class="text-sm text-muted" style="display:flex; gap:0.6rem; margin-top:0.35rem; align-items:center;">
+                <span class="badge badge-neutral">{{ lecturer.get_designation_display }}</span>
+                <span class="mono">{{ lecturer.staff_id }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2" style="margin-bottom:1.5rem;">
+    <div class="card">
+        <div class="card-body" style="display:flex; align-items:center; gap:1rem;">
+            <div>
+                <p class="text-xs text-muted" style="text-transform:uppercase; font-weight:700; color:var(--teal-600);">Department</p>
+                <p style="font-weight:600;">{{ lecturer.department.name|default:"General" }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <p class="text-xs text-muted" style="text-transform:uppercase; font-weight:700; color:var(--success);">Current Session</p>
+            <p style="font-weight:600;">{{ current_semester.session|default:"N/A" }} &middot; {{ current_semester.get_semester_display|default:"-" }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-3" style="margin-bottom:2rem;">
+    <div class="stat-tile"><div class="stat-tile__value">{{ stats.course_count }}</div><div class="stat-tile__label">Assigned Courses</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--teal-600);">{{ stats.total_students }}</div><div class="stat-tile__label">Total Students</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">&mdash;</div><div class="stat-tile__label">Pending Grades</div></div>
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <h3 style="font-size:1.05rem;">My Assigned Courses</h3>
+    <a href="{% url 'portal:lecturer_courses' %}" class="btn btn-outline btn-sm">View All</a>
+</div>
+
+{% if not courses %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3rem 1.5rem;">
+        <p style="font-weight:600;">No courses assigned</p>
+        <p class="text-sm text-muted">Contact your Head of Department if you believe this is an error.</p>
+    </div>
+</div>
+{% else %}
+<div class="grid grid-3">
+    {% for row in courses %}
+    <div class="card">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <p class="card-title">{{ row.course.code }}</p>
+                <p class="card-description">{{ row.course.title }}</p>
+            </div>
+            <span class="badge badge-neutral">{{ row.course.credits }} Units</span>
+        </div>
+        <div class="card-body">
+            <div class="text-sm" style="display:flex; align-items:center; gap:0.5rem; background:var(--slate-50); padding:0.6rem 0.85rem; border-radius:var(--radius); margin-bottom:1rem;">
+                <strong>{{ row.student_count }}</strong> <span class="text-muted">Students Enrolled</span>
+            </div>
+            <div class="grid grid-2" style="gap:0.6rem;">
+                <a href="{% url 'portal:lecturer_course_students' row.course.id %}" class="btn btn-outline btn-sm">Class List</a>
+                <a href="{% url 'portal:lecturer_gradebook' row.course.id %}" class="btn btn-primary btn-sm">Grades</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

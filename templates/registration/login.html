@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Sign in{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+        background: linear-gradient(180deg, var(--teal-50), var(--slate-50) 60%); }
+    .login-card { width: 100%; max-width: 26rem; position: relative; z-index: 1; }
+    .login-brand { text-align: center; margin-bottom: 2rem; }
+    .login-brand-mark { margin: 0 auto 1.25rem; height: 3.5rem; width: 3.5rem; border-radius: var(--radius-lg);
+        background: var(--teal-700); color: var(--white); display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 1.4rem; box-shadow: var(--shadow-lg); }
+    .login-brand h1 { font-size: 1.5rem; color: var(--teal-950); }
+    .login-brand p { color: var(--slate-500); margin-top: 0.35rem; }
+    .login-footer { text-align: center; margin-top: 1.5rem; font-size: 0.875rem; color: var(--slate-500); }
+    .login-footer a { color: var(--teal-700); font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-wrap brand-watermark brand-watermark--login">
+    <div class="login-card">
+        <div class="login-brand">
+            <div class="login-brand-mark">CF</div>
+            <h1>Welcome to CHES Funtua</h1>
+            <p>Sign in to your academic portal</p>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                {% if form.non_field_errors %}
+                <div class="form-error">
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}">
+
+                    <div class="field">
+                        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<ul class="errorlist">{% for e in form.email.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+
+                    <div class="field">
+                        <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+                        {{ form.password }}
+                        {% if form.password.errors %}<ul class="errorlist">{% for e in form.password.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="login-footer">
+            <p><a href="{% url 'portal:landing' %}">&larr; Back to home</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

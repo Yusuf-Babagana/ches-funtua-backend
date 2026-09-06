@@ -1,0 +1,129 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}System Configuration{% endblock %}
+{% block page_subtitle %}Registration status and department configuration.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tabs { display:flex; gap:0.5rem; border-bottom:1px solid var(--slate-200); margin-bottom:1.5rem; }
+    .tab-btn { padding:0.65rem 1rem; font-weight:600; font-size:0.875rem; color:var(--slate-500); border-bottom:2px solid transparent; cursor:pointer; background:none; border-left:none; border-right:none; border-top:none; }
+    .tab-btn.is-active { color:var(--teal-700); border-bottom-color:var(--teal-600); }
+    .tab-panel { display:none; }
+    .tab-panel.is-active { display:block; }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="tabs">
+    <button type="button" class="tab-btn is-active" data-tab="session">Session &amp; Registration</button>
+    <button type="button" class="tab-btn" data-tab="departments">Departments</button>
+</div>
+
+<div class="tab-panel is-active" id="tab-session">
+    <div class="card" style="max-width:34rem;">
+        <div class="card-header"><p class="card-title">Current Session</p></div>
+        <div class="card-body">
+            {% if not config.current_semester %}
+            <div class="alert alert-danger">No active semester found.</div>
+            {% else %}
+            <div class="grid grid-2" style="margin-bottom:1.25rem;">
+                <div><p class="text-xs text-muted" style="text-transform:uppercase;">Session</p><p style="font-weight:700;">{{ config.current_semester.session }}</p></div>
+                <div><p class="text-xs text-muted" style="text-transform:uppercase;">Semester</p><p style="font-weight:700;">{{ config.current_semester.get_semester_display }}</p></div>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="form" value="registration">
+                <label style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1rem;">
+                    <input type="checkbox" name="registration_enabled" {% if config.registration_enabled %}checked{% endif %}>
+                    Course registration is open
+                </label>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </form>
+            {% endif %}
+            <p class="text-xs text-muted" style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--slate-100);">
+                Max credit units per semester (paid): <strong>{{ config.max_credit_units_paid }}</strong> &mdash; set in academics/constants.py, not editable here.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="tab-panel" id="tab-departments">
+    <div class="card" style="max-width:28rem; margin-bottom:1.5rem;">
+        <div class="card-header"><p class="card-title">Create Department</p></div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="form" value="create_department">
+                <div class="grid grid-2">
+                    <div class="field"><label>Name</label><input type="text" name="name" required></div>
+                    <div class="field"><label>Code</label><input type="text" name="code" required maxlength="10"></div>
+                </div>
+                <div class="field"><label>Description</label><textarea name="description" rows="2"></textarea></div>
+                <button type="submit" class="btn btn-primary btn-block">Create Department</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body" style="padding:0;">
+            {% for row in department_rows %}
+            <details style="border-bottom:1px solid var(--slate-100);">
+                <summary style="cursor:pointer; padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>
+                        <strong>{{ row.department.name }}</strong> <span class="mono text-xs text-muted">({{ row.department.code }})</span>
+                        {% if not row.department.hod %}<span class="badge badge-warning" style="margin-left:0.5rem;">No HOD</span>{% endif %}
+                    </span>
+                    <span class="text-xs text-muted">{{ row.student_count }} students &middot; {{ row.lecturer_count }} lecturers &middot; {{ row.course_count }} courses</span>
+                </summary>
+                <div style="padding:0 1.25rem 1.25rem;">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="form" value="update_department">
+                        <input type="hidden" name="department_id" value="{{ row.department.id }}">
+                        <div class="grid grid-2">
+                            <div class="field"><label>Name</label><input type="text" name="name" value="{{ row.department.name }}" required></div>
+                            <div class="field"><label>Code</label><input type="text" name="code" value="{{ row.department.code }}" required maxlength="10"></div>
+                        </div>
+                        <div class="field"><label>Description</label><textarea name="description" rows="2">{{ row.department.description }}</textarea></div>
+                        <div class="field">
+                            <label>Head of Department</label>
+                            <select name="hod_id">
+                                <option value="">-- None --</option>
+                                {% for lecturer in row.available_lecturers %}
+                                <option value="{{ lecturer.id }}" {% if row.department.hod_id == lecturer.id %}selected{% endif %}>{{ lecturer.user.get_full_name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if not row.available_lecturers %}<p class="text-xs text-muted" style="margin-top:0.3rem;">No lecturers in this department yet.</p>{% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-outline btn-sm">Save Changes</button>
+                    </form>
+                    {% if request.user.role == 'super-admin' %}
+                    <form method="post" style="margin-top:0.75rem;"
+                          data-confirm="Permanently delete {{ row.department.name }}? This only works if it has no students, lecturers, or courses left.">
+                        {% csrf_token %}
+                        <input type="hidden" name="form" value="delete_department">
+                        <input type="hidden" name="department_id" value="{{ row.department.id }}">
+                        <button type="submit" class="btn btn-sm" style="color:var(--danger); border:1px solid var(--danger-border); background:var(--danger-bg);">Delete Department</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('is-active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            document.getElementById('tab-' + btn.dataset.tab).classList.add('is-active');
+        });
+    });
+</script>
+{% endblock %}

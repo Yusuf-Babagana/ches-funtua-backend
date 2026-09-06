@@ -1,0 +1,106 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Attendance{% endblock %}
+{% block page_subtitle %}Mark and review student attendance by course.{% endblock %}
+
+{% block dashboard_content %}
+<form method="get" style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:flex-end; margin-bottom:1.5rem;">
+    <div class="field" style="margin:0; min-width:16rem;">
+        <label for="course_id">Course</label>
+        <select name="course_id" id="course_id" onchange="this.form.submit()">
+            <option value="">Select a course&hellip;</option>
+            {% for row in attendance_courses %}
+            <option value="{{ row.course.id }}" {% if course and course.id == row.course.id %}selected{% endif %}>
+                {{ row.course.code }} &mdash; {{ row.course.title }} ({{ row.enrolled_students }} students)
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% if course %}
+    <div class="field" style="margin:0;">
+        <label for="date">Date</label>
+        <input type="date" name="date" id="date" value="{{ mark_date|date:'Y-m-d' }}" max="{{ today }}" onchange="this.form.submit()">
+    </div>
+    {% endif %}
+</form>
+
+{% if not attendance_courses %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3rem 1.5rem;">
+        <p style="font-weight:600;">No active courses this semester</p>
+    </div>
+</div>
+{% elif not course %}
+<div class="card">
+    <div class="card-body" style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">Select a course to view or mark attendance.</div>
+</div>
+{% else %}
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header"><p class="card-title">Mark Attendance &mdash; {{ mark_date|date:"F j, Y" }}</p></div>
+    <div class="card-body" style="padding:0;">
+        {% if not roster %}
+        <div style="text-align:center; padding:2.5rem 1.5rem; color:var(--slate-400);">No students registered for this course.</div>
+        {% else %}
+        <form method="post" action="{% url 'portal:lecturer_mark_attendance' course.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="date" value="{{ mark_date|date:'Y-m-d' }}">
+            <div class="table-wrap" style="border:none;">
+                <table class="data-table">
+                    <thead><tr><th>Student</th><th>Matric</th><th style="width:14rem;">Status</th></tr></thead>
+                    <tbody>
+                        {% for row in roster %}
+                        <tr>
+                            <td>{{ row.student.user.full_name }}</td>
+                            <td class="mono text-xs">{{ row.student.matric_number }}</td>
+                            <td>
+                                <select name="status_{{ row.student.id }}">
+                                    <option value="present" {% if row.existing.status == 'present' or not row.existing %}selected{% endif %}>Present</option>
+                                    <option value="absent" {% if row.existing.status == 'absent' %}selected{% endif %}>Absent</option>
+                                    <option value="late" {% if row.existing.status == 'late' %}selected{% endif %}>Late</option>
+                                    <option value="excused" {% if row.existing.status == 'excused' %}selected{% endif %}>Excused</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div style="padding:1rem 1.25rem; border-top:1px solid var(--slate-100); text-align:right;">
+                <button type="submit" class="btn btn-primary">Save Attendance</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><p class="card-title">Attendance Report</p><p class="card-description">{{ total_classes }} class session(s) recorded so far this semester &middot; below 75% is flagged</p></div>
+    <div class="card-body" style="padding:0;">
+        {% if not report %}
+        <div style="text-align:center; padding:2.5rem 1.5rem; color:var(--slate-400);">No attendance records yet.</div>
+        {% else %}
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Student</th><th style="text-align:center;">Present</th><th style="text-align:center;">Absent</th><th style="text-align:center;">Late</th><th style="text-align:right;">%</th></tr></thead>
+                <tbody>
+                    {% for row in report %}
+                    <tr>
+                        <td>{{ row.student.user.full_name }} <span class="text-xs text-muted mono">{{ row.student.matric_number }}</span></td>
+                        <td style="text-align:center;">{{ row.present_count }}</td>
+                        <td style="text-align:center;">{{ row.absent_count }}</td>
+                        <td style="text-align:center;">{{ row.late_count }}</td>
+                        <td style="text-align:right;">
+                            <span class="badge {% if row.below_threshold %}badge-danger{% else %}badge-success{% endif %}">{{ row.percentage }}%</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}

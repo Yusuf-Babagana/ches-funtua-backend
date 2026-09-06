@@ -1,0 +1,46 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Result Compilation{% endblock %}
+{% block page_subtitle %}Review submitted scores, check for anomalies, and verify results.{% endblock %}
+
+{% block dashboard_content %}
+{% if not pending %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3.5rem 1.5rem;">
+        <h3 class="card-title" style="color:var(--success);">All caught up!</h3>
+        <p class="card-description">No courses with active offerings this semester.</p>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Course</th><th>Lecturer</th><th style="text-align:center;">Enrollment</th><th>Progress</th><th style="text-align:right;">Action</th></tr></thead>
+                <tbody>
+                    {% for row in pending %}
+                    <tr>
+                        <td>
+                            <span class="mono" style="font-weight:700;">{{ row.course.code }}</span>
+                            <p class="text-xs text-muted">{{ row.course.title }}</p>
+                        </td>
+                        <td class="text-sm">{{ row.course.lecturer.user.full_name|default:"Not assigned" }}</td>
+                        <td style="text-align:center;"><span class="badge badge-neutral">{{ row.enrolled_count }} Students</span></td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <span class="text-xs" style="font-weight:600;">{{ row.completion_percentage }}% Graded</span>
+                                {% if row.ready_to_verify %}<span class="badge badge-info">{{ row.ready_to_verify }} ready to verify</span>{% endif %}
+                            </div>
+                        </td>
+                        <td style="text-align:right;">
+                            <a href="{% url 'portal:eo_result_detail' row.course.id %}" class="btn btn-outline btn-sm">Review</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

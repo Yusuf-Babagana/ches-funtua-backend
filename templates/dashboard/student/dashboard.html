@@ -1,0 +1,174 @@
+{% extends "dashboard/base.html" %}
+{% load portal_extras %}
+
+{% block page_title %}Student Dashboard{% endblock %}
+{% block page_subtitle %}Manage your academic activities and records.{% endblock %}
+
+{% block dashboard_content %}
+<div class="stack gap-4">
+
+    {# --- Profile header --- #}
+    <div class="card" style="overflow:hidden;">
+        <div style="height:0.4rem; background:linear-gradient(90deg, var(--teal-500), var(--emerald-500));"></div>
+        <div class="card-body" style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:1.5rem; align-items:center;">
+            <div style="display:flex; align-items:center; gap:1.25rem;">
+                <div style="height:4.5rem; width:4.5rem; border-radius:999px; background:var(--teal-50); border:2px solid var(--teal-100); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--teal-700); font-size:1.4rem;">
+                    {{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}
+                </div>
+                <div>
+                    <h2 style="font-size:1.5rem; color:var(--slate-900);">Welcome, {{ request.user.first_name }}</h2>
+                    <div class="text-sm text-muted" style="margin-top:0.4rem; display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+                        <span class="mono badge badge-neutral">{{ student.matric_number }}</span>
+                        <span>{{ student.department.name|default:"Unassigned" }}</span>
+                        <span>Level {{ student.level }}</span>
+                        {% if program_status %}
+                        <span class="badge badge-info">{{ program_status.program.name }} &middot; Semester {{ program_status.completed_semesters }} of {{ program_status.duration_semesters }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-4" style="padding: 0 1.5rem 1.5rem;">
+            <div class="stat-tile">
+                <div class="stat-tile__value">{{ schedule|length }}</div>
+                <div class="stat-tile__label">Enrolled</div>
+            </div>
+            <div class="stat-tile">
+                <div class="stat-tile__value" style="color:var(--teal-600);">{{ total_credits }}</div>
+                <div class="stat-tile__label">Total Units</div>
+            </div>
+            <div class="stat-tile" style="cursor:pointer;" onclick="window.location.href='{% url 'portal:student_results' %}'">
+                <div class="stat-tile__value" style="color:#7c3aed;">{{ history.current_cgpa|default:"0.00" }}</div>
+                <div class="stat-tile__label">CGPA</div>
+            </div>
+            <div class="stat-tile" style="background:{% if has_paid %}var(--success-bg){% else %}var(--danger-bg){% endif %};">
+                <div class="stat-tile__value" style="color:{% if has_paid %}var(--success){% else %}var(--danger){% endif %}; font-size:1.1rem;">
+                    {% if has_paid %}PAID{% else %}UNPAID{% endif %}
+                </div>
+                <div class="stat-tile__label">Fee Status</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 7fr 5fr;">
+        {# --- LEFT: finance + registration --- #}
+        <div class="stack gap-4">
+
+            {% if invoice %}
+            <div class="grid grid-3">
+                <div class="card" style="border-left:4px solid var(--slate-900);">
+                    <div class="card-body" style="padding:1rem 1.25rem;">
+                        <p class="text-xs text-muted">Total Session Bill</p>
+                        <p style="font-size:1.35rem; font-weight:800;">{{ invoice.amount|naira }}</p>
+                    </div>
+                </div>
+                <div class="card" style="border-left:4px solid var(--teal-500); background:var(--teal-50);">
+                    <div class="card-body" style="padding:1rem 1.25rem;">
+                        <p class="text-xs" style="color:var(--teal-700);">Amount Paid</p>
+                        <p style="font-size:1.35rem; font-weight:800; color:var(--teal-600);">{{ invoice.amount_paid|naira }}</p>
+                    </div>
+                </div>
+                <div class="card" style="border-left:4px solid var(--warning); background:var(--warning-bg);">
+                    <div class="card-body" style="padding:1rem 1.25rem;">
+                        <p class="text-xs" style="color:#92400e;">Outstanding Balance</p>
+                        <p style="font-size:1.35rem; font-weight:800; color:var(--warning);">{{ invoice.balance|naira }}</p>
+                    </div>
+                </div>
+            </div>
+
+            {% if not has_paid %}
+            <div class="alert alert-warning">
+                Attention: you have an outstanding balance. Clear it to unlock full registration and results.
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                Your fees are fully paid for this session.
+            </div>
+            {% endif %}
+            {% elif invoice_error %}
+            <div class="alert alert-danger">{{ invoice_error }}</div>
+            {% endif %}
+
+            {# --- Registration status / free-course exception --- #}
+            {% if reg_status.has_current_semester %}
+            <div class="card">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <p class="card-title">Course Registration</p>
+                        <p class="card-description">{{ reg_status.total_credit_units }} of {{ reg_status.max_credit_units }} credit units used this semester</p>
+                    </div>
+                    <span class="badge {% if reg_status.can_register %}badge-success{% else %}badge-neutral{% endif %}">
+                        {% if reg_status.can_register %}Open{% else %}Closed{% endif %}
+                    </span>
+                </div>
+                <div class="card-body">
+                    {% if not reg_status.has_paid_fees %}
+                    <p class="text-sm text-muted" style="margin-bottom:0.85rem;">
+                        Fees unpaid: you can still register up to <strong>{{ reg_status.max_credit_units }} credit units</strong> this semester
+                        ({{ reg_status.remaining_free_units }} remaining) while you complete payment.
+                    </p>
+                    {% endif %}
+                    <a href="{% url 'portal:student_registration' %}" class="btn btn-primary">
+                        Go to Registration {% if available_offerings_count %}({{ available_offerings_count }} available){% endif %}
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if payments %}
+            <div class="card">
+                <div class="card-header"><p class="card-title">Recent Payments</p></div>
+                <div class="card-body stack gap-3">
+                    {% for pay in payments %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:0.75rem; border-bottom:1px solid var(--slate-100);">
+                        <div>
+                            <p style="font-weight:600;">{{ pay.amount|naira }}</p>
+                            <p class="text-xs text-muted">{{ pay.created_at|date:"M j, Y" }} &middot; {{ pay.description|default:"Tuition Payment" }}</p>
+                        </div>
+                        <span class="badge {% if pay.status == 'completed' %}badge-success{% elif pay.status == 'pending' %}badge-warning{% else %}badge-danger{% endif %}">
+                            {{ pay.status }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {# --- RIGHT: my schedule --- #}
+        <div class="stack gap-3">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="font-size:1.05rem;">My Schedule</h3>
+                <a href="{% url 'portal:student_print_schedule' %}" class="btn btn-outline btn-sm">Print</a>
+            </div>
+            <div class="card">
+                <div class="card-body" style="padding:0;">
+                    {% if not schedule %}
+                    <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">
+                        <p style="font-weight:600; color:var(--slate-600);">Your schedule is empty.</p>
+                        <p class="text-sm" style="margin-top:0.25rem;">Register for courses to see them here.</p>
+                    </div>
+                    {% else %}
+                    {% for row in schedule %}
+                    <div style="padding:1rem 1.25rem; border-bottom:1px solid var(--slate-100);">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div>
+                                <span style="font-weight:700;">{{ row.course.code }}</span>
+                                <span class="badge badge-success" style="margin-left:0.4rem;">{{ row.course.credits }}u</span>
+                                <p class="text-sm text-muted" style="margin-top:0.25rem;">{{ row.course.title }}</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted" style="margin-top:0.4rem;">{{ row.lecturer_name }}</p>
+                    </div>
+                    {% endfor %}
+                    <div style="padding:0.75rem; text-align:center; background:var(--success-bg);">
+                        <p class="text-xs" style="color:var(--success); font-weight:600;">Total Registered Units: {{ total_credits }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

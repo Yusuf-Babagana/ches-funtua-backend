@@ -1,0 +1,59 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Desk Officer Dashboard{% endblock %}
+{% block page_subtitle %}{{ current_semester.session|default:"No Active Session" }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ stats.pending_payments }}</div><div class="stat-tile__label">Pending Payments</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--info);">{{ stats.pending_documents }}</div><div class="stat-tile__label">Pending Documents</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:#7c3aed;">{{ stats.open_queries }}</div><div class="stat-tile__label">Open Queries</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--danger);">{{ stats.students_without_registration }}</div><div class="stat-tile__label">Not Registered</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns: 7fr 5fr;">
+    <div class="card">
+        <div class="card-header"><p class="card-title">Today's Activity</p></div>
+        <div class="card-body">
+            <div class="grid grid-3">
+                <div style="text-align:center;"><p style="font-size:1.5rem; font-weight:800;">{{ today_activities.registrations }}</p><p class="text-xs text-muted">Registrations</p></div>
+                <div style="text-align:center;"><p style="font-size:1.5rem; font-weight:800;">{{ today_activities.queries_created }}</p><p class="text-xs text-muted">Queries Created</p></div>
+                <div style="text-align:center;"><p style="font-size:1.5rem; font-weight:800;">{{ today_activities.documents_uploaded }}</p><p class="text-xs text-muted">Documents Uploaded</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><p class="card-title">Assigned to Me</p></div>
+        <div class="card-body stack gap-2">
+            <div style="display:flex; justify-content:space-between;"><span class="text-sm text-muted">Open queries</span><span class="badge badge-info">{{ assigned_to_me.queries }}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span class="text-sm text-muted">Documents verified today</span><span class="badge badge-success">{{ assigned_to_me.documents_today }}</span></div>
+        </div>
+    </div>
+</div>
+
+<div style="margin-top:1.5rem;">
+    <p class="text-sm text-muted" style="margin-bottom:0.75rem; font-weight:700; text-transform:uppercase; font-size:0.75rem;">Quick Actions</p>
+    <div class="grid grid-4">
+        <a href="{% url 'portal:do_payments' %}" class="card" style="padding:1.25rem; text-align:center; text-decoration:none;">
+            <p style="font-weight:700;">Verify Payments</p>
+            {% if stats.pending_payments %}<span class="badge badge-warning" style="margin-top:0.4rem;">{{ stats.pending_payments }}</span>{% endif %}
+        </a>
+        <a href="{% url 'portal:do_documents' %}" class="card" style="padding:1.25rem; text-align:center; text-decoration:none;">
+            <p style="font-weight:700;">Verify Documents</p>
+            {% if stats.pending_documents %}<span class="badge badge-warning" style="margin-top:0.4rem;">{{ stats.pending_documents }}</span>{% endif %}
+        </a>
+        <a href="{% url 'portal:do_queries' %}" class="card" style="padding:1.25rem; text-align:center; text-decoration:none;">
+            <p style="font-weight:700;">Handle Queries</p>
+            {% if stats.open_queries %}<span class="badge badge-warning" style="margin-top:0.4rem;">{{ stats.open_queries }}</span>{% endif %}
+        </a>
+        <a href="{% url 'portal:do_students' %}" class="card" style="padding:1.25rem; text-align:center; text-decoration:none;">
+            <p style="font-weight:700;">Student Search</p>
+        </a>
+        <a href="{% url 'portal:do_support' %}" class="card" style="padding:1.25rem; text-align:center; text-decoration:none;">
+            <p style="font-weight:700;">Support Inbox</p>
+            {% if support_unread_count %}<span class="badge badge-warning" style="margin-top:0.4rem;">{{ support_unread_count }}</span>{% endif %}
+        </a>
+    </div>
+</div>
+{% endblock %}

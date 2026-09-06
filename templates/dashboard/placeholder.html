@@ -1,0 +1,21 @@
+{% extends "dashboard/base.html" %}
+
+{% block dashboard_content %}
+<div class="card">
+    <div class="card-body" style="text-align:center; padding: 3.5rem 1.5rem;">
+        <h3 class="card-title" style="font-size:1.1rem;">This page is being migrated</h3>
+        <p class="card-description" style="margin-top:0.5rem;">
+            The {{ page_title }} is part of the ongoing Next.js → Django templates migration.
+            Sign-in, role-based access, and this shared dashboard shell are already live —
+            the real data and actions for this role arrive in the next migration phase.
+        </p>
+        {% if profile %}
+        <p class="text-sm text-muted" style="margin-top:1.5rem;">
+            Signed in as <strong>{{ request.user.full_name }}</strong>
+            {% if profile.matric_number %}&middot; {{ profile.matric_number }}{% endif %}
+            {% if profile.staff_id %}&middot; {{ profile.staff_id }}{% endif %}
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

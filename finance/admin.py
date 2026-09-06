@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import FeeStructure, Invoice, Payment, PaymentReceipt
+from .models import FeeStructure, Invoice, Payment, PaymentReceipt, FeeItem, FeeItemCharge
 
 @admin.register(FeeStructure)
 class FeeStructureAdmin(admin.ModelAdmin):
@@ -7,6 +7,26 @@ class FeeStructureAdmin(admin.ModelAdmin):
     list_filter = ['level', 'department', 'session', 'is_active']
     search_fields = ['name', 'description']
     readonly_fields = ['total_fee']
+
+
+class FeeItemChargeInline(admin.TabularInline):
+    model = FeeItemCharge
+    extra = 1
+
+
+@admin.register(FeeItem)
+class FeeItemAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'is_optional', 'requires_selection', 'is_active']
+    list_filter = ['is_optional', 'requires_selection', 'is_active']
+    search_fields = ['name', 'code']
+    inlines = [FeeItemChargeInline]
+
+
+@admin.register(FeeItemCharge)
+class FeeItemChargeAdmin(admin.ModelAdmin):
+    list_display = ['fee_item', 'session', 'semester', 'level', 'amount', 'is_active']
+    list_filter = ['session', 'semester', 'level', 'is_active']
+    search_fields = ['fee_item__name']
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):

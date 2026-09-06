@@ -1,0 +1,96 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Manual Course Registration{% endblock %}
+{% block page_subtitle %}Override registration for a student in exceptional cases (max {{ max_credit_units }} credit units).{% endblock %}
+
+{% block dashboard_content %}
+{% if not student %}
+<form method="get" style="display:flex; gap:0.75rem; margin-bottom:1.25rem;">
+    <input type="text" name="q" placeholder="Search student by name, matric, or email..." value="{{ search_query }}"
+           style="flex:1; padding:0.65rem 0.85rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+    <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+{% if search_results %}
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% for row in search_results %}
+        <a href="?student_id={{ row.student.id }}" style="display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1.25rem; border-bottom:1px solid var(--slate-100); text-decoration:none;">
+            <div>
+                <p style="font-weight:600;">{{ row.student.user.full_name }}</p>
+                <p class="text-xs text-muted mono">{{ row.student.matric_number }}</p>
+            </div>
+            <span class="btn btn-outline btn-sm">Select</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% elif search_query %}
+<div class="alert alert-info">No students found.</div>
+{% else %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">Search for a student to begin.</div>
+</div>
+{% endif %}
+
+{% else %}
+
+<div class="card" style="margin-bottom:1.25rem;">
+    <div class="card-body" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <p style="font-weight:700; font-size:1.1rem;">{{ student.user.full_name }}</p>
+            <p class="text-sm text-muted mono">{{ student.matric_number }} &middot; {{ student.department.name|default:"N/A" }} &middot; Level {{ student.level }}</p>
+        </div>
+        <a href="{% url 'portal:do_registration' %}" class="btn btn-outline btn-sm">Change Student</a>
+    </div>
+</div>
+
+{% if issues %}
+<div class="alert alert-warning" style="margin-bottom:1.25rem;">
+    <div>
+        <strong>Eligibility issues found:</strong>
+        <ul style="margin:0.5rem 0 0; padding-left:1.25rem;">
+            {% for issue in issues %}<li>{{ issue }}</li>{% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="student_id" value="{{ student.id }}">
+    <div class="card">
+        <div class="card-body" style="padding:0;">
+            {% if not offerings %}
+            <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No available courses for the current semester.</div>
+            {% else %}
+            {% for offering in offerings %}
+            <label style="display:flex; align-items:flex-start; gap:0.75rem; padding:0.85rem 1.25rem; border-bottom:1px solid var(--slate-100);">
+                <input type="checkbox" name="course_offering_ids" value="{{ offering.id }}" style="margin-top:0.3rem;">
+                <div>
+                    <span style="font-weight:700;">{{ offering.course.code }}: {{ offering.course.title }}</span>
+                    <span class="badge badge-neutral" style="margin-left:0.5rem;">{{ offering.course.credits }} Units</span>
+                    <p class="text-xs text-muted" style="margin-top:0.25rem;">{{ offering.course.department.name }} &middot; {{ offering.lecturer.user.full_name|default:"TBA" }}</p>
+                </div>
+            </label>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% if offerings %}
+        <div style="padding:1rem 1.25rem; border-top:1px solid var(--slate-100);">
+            {% if issues %}
+            <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem; font-size:0.875rem; color:var(--warning);">
+                <input type="checkbox" name="override_payment"> Override eligibility issues above (requires justification in remarks)
+            </label>
+            {% endif %}
+            <div class="field">
+                <label>Remarks</label>
+                <textarea name="remarks" rows="2" placeholder="Reason for manual registration..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Register Selected Courses</button>
+        </div>
+        {% endif %}
+    </div>
+</form>
+{% endif %}
+{% endblock %}

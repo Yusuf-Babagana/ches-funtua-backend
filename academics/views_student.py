@@ -15,6 +15,7 @@ from .models import (
 )
 from users.models import Student
 from finance.models import Invoice
+from .constants import MAX_CREDIT_UNITS_PAID, MAX_CREDIT_UNITS_UNPAID
 from .serializers import (
     SemesterSerializer, 
     CourseOfferingSerializer, 
@@ -101,7 +102,8 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             status__in=['pending', 'approved_lecturer']
         )
         
-        # --- FEE PAYMENT CHECK (ALLOWS 2 COURSES IF UNPAID) ---
+        # --- FEE PAYMENT CHECK (credit-unit cap: smaller free allowance
+        # while unpaid, full ceiling once paid -- see academics/constants.py) ---
         has_paid_fees = False
         # Check for invoice matching this specific semester/session
         invoice = Invoice.objects.filter(
@@ -109,26 +111,28 @@ class StudentDashboardViewSet(viewsets.ViewSet):
             session=current_semester.session,
             semester=current_semester.semester
         ).first()
-        
+
         if invoice and invoice.status == 'paid':
             has_paid_fees = True
 
         # Count total registrations (active + pending)
         current_reg_count = registrations.count() + pending_registrations.count()
-        
+        total_credits = sum(
+            r.course_offering.course.credits for r in (registrations | pending_registrations)
+        ) if (registrations | pending_registrations).exists() else 0
+
         # --- DEADLINE CHECK ---
         registration_deadline = current_semester.registration_deadline
-        
-        # ELIGIBILITY LOGIC:
-        # 1. Paid students: Can register up to 15 courses
-        # 2. Unpaid students: Can register up to 2 courses
-        can_register_by_limit = (current_reg_count < 15) if has_paid_fees else (current_reg_count < 2)
+
+        # ELIGIBILITY LOGIC: one real credit-unit ceiling, not a course count.
+        max_units = MAX_CREDIT_UNITS_PAID if has_paid_fees else MAX_CREDIT_UNITS_UNPAID
+        can_register_by_limit = total_credits < max_units
 
         can_register = (
-            can_register_by_limit and 
+            can_register_by_limit and
             is_reg_open_for_level
         )
-        
+
         return Response({
             'has_current_semester': True,
             'current_semester': {
@@ -144,13 +148,11 @@ class StudentDashboardViewSet(viewsets.ViewSet):
                 'has_paid_fees': has_paid_fees,
                 'can_register': can_register,
                 'registered_courses': current_reg_count,
-                'max_courses': 15 if has_paid_fees else 2, 
-                'total_credits': sum(
-                    r.course_offering.course.credits for r in (registrations | pending_registrations)
-                ) if (registrations | pending_registrations).exists() else 0
+                'max_credit_units': max_units,
+                'total_credits': total_credits,
             }
         })
-    
+
     @action(detail=False, methods=['get'])
     def current_schedule(self, request):
         """Get student's current semester schedule"""
@@ -496,24 +498,28 @@ class StudentRegistrationStatusAPIView(APIView):
             status__in=['pending', 'approved_lecturer']
         )
         
-        # --- FEE CHECK LOGIC (ALLOWS 2 COURSES IF UNPAID) ---
+        # --- FEE CHECK LOGIC (credit-unit cap -- see academics/constants.py) ---
         has_paid_fees = False
         invoice = Invoice.objects.filter(
             student=student,
             session=current_semester.session,
             semester=current_semester.semester
         ).first()
-        
+
         if invoice and invoice.status == 'paid':
             has_paid_fees = True
 
         current_reg_count = registrations.count() + pending_registrations.count()
         registration_deadline = current_semester.registration_deadline
-        
-        # ELIGIBILITY LOGIC
-        can_register_by_limit = (current_reg_count < 15) if has_paid_fees else (current_reg_count < 2)
+        total_credits = sum(
+            r.course_offering.course.credits for r in (registrations | pending_registrations)
+        ) if (registrations | pending_registrations).exists() else 0
+
+        # ELIGIBILITY LOGIC: one real credit-unit ceiling, not a course count.
+        max_units = MAX_CREDIT_UNITS_PAID if has_paid_fees else MAX_CREDIT_UNITS_UNPAID
+        can_register_by_limit = total_credits < max_units
         can_register = can_register_by_limit and is_reg_open
-        
+
         return Response({
             'has_current_semester': True,
             'current_semester': {
@@ -529,9 +535,7 @@ class StudentRegistrationStatusAPIView(APIView):
                 'has_paid_fees': has_paid_fees,
                 'can_register': can_register,
                 'registered_courses': current_reg_count,
-                'max_courses': 15 if has_paid_fees else 2,
-                'total_credits': sum(
-                    r.course_offering.course.credits for r in (registrations | pending_registrations)
-                ) if (registrations | pending_registrations).exists() else 0
+                'max_credit_units': max_units,
+                'total_credits': total_credits,
             }
         })

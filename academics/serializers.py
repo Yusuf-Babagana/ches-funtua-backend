@@ -287,7 +287,12 @@ class StudentRegistrationStatusSerializer(serializers.Serializer):
     registration_deadline = serializers.DateField()
     is_registration_active = serializers.BooleanField()
     registered_courses = serializers.IntegerField()
-    max_courses = serializers.IntegerField(default=6)
+    # Was a stale "6 courses" default inconsistent with the real 2/15
+    # course-count caps enforced elsewhere; the whole cap is now a
+    # credit-unit ceiling (see academics/constants.py) rather than a
+    # course count, so this field only makes sense as a display default
+    # matching the paid ceiling.
+    max_credit_units = serializers.IntegerField(default=24)
     can_register = serializers.BooleanField()
     total_credits_registered = serializers.IntegerField(default=0)
 

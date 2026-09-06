@@ -1,0 +1,56 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Review: {{ course.code }}{% endblock %}
+{% block page_subtitle %}{{ course.title }}{% endblock %}
+
+{% block dashboard_content %}
+<a href="{% url 'portal:hod_approvals' %}" class="btn btn-outline btn-sm" style="margin-bottom:1.25rem;">&larr; Back to Approvals</a>
+
+<div class="grid grid-3" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value">{{ grades|length }}</div><div class="stat-tile__label">Total Students</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--success);">{{ passed_count }}</div><div class="stat-tile__label">Passed</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--danger);">{{ failed_count }}</div><div class="stat-tile__label">Failed</div></div>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Student</th><th>Matric No.</th><th style="text-align:center;">CA</th><th style="text-align:center;">Exam</th><th style="text-align:center;">Total</th><th style="text-align:center;">Grade</th></tr></thead>
+                <tbody>
+                    {% for g in grades %}
+                    <tr>
+                        <td style="font-weight:600;">{{ g.student.user.full_name }}</td>
+                        <td class="mono text-xs">{{ g.student.matric_number }}</td>
+                        <td style="text-align:center;">{{ g.ca_score|default:"-" }}</td>
+                        <td style="text-align:center;">{{ g.exam_score|default:"-" }}</td>
+                        <td style="text-align:center; font-weight:700;">{{ g.score }}</td>
+                        <td style="text-align:center;">
+                            <span class="badge {% if g.grade_letter == 'F' %}badge-danger{% else %}badge-success{% endif %}">{{ g.grade_letter }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="border-color:var(--danger-border); background:var(--danger-bg);">
+    <div class="card-body">
+        <p style="font-weight:600; color:#991b1b; margin-bottom:0.75rem;">Feedback / Rejection Reason</p>
+        <form method="post" action="{% url 'portal:hod_reject_results' course.id %}" id="reject-form">
+            {% csrf_token %}
+            <textarea name="reason" rows="3" placeholder="If rejecting, describe what needs to be corrected (e.g. 'Missing CA scores for 3 students')..."
+                      style="width:100%; padding:0.65rem 0.85rem; border:1px solid var(--danger-border); border-radius:var(--radius); font-family:inherit; font-size:0.875rem;"></textarea>
+        </form>
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1rem;">
+            <button type="submit" form="reject-form" class="btn btn-danger">Return to Lecturer</button>
+            <form method="post" action="{% url 'portal:hod_approve_results' course.id %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" style="background:var(--success);">Approve &amp; Forward</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

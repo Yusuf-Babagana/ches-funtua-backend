@@ -1,0 +1,71 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Registration Approvals{% endblock %}
+{% block page_subtitle %}Lecturer-approved, fee-verified registrations awaiting final approval.{% endblock %}
+
+{% block dashboard_content %}
+{% if not pending %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3.5rem 1.5rem;">
+        <p style="font-weight:600;">No pending registrations.</p>
+    </div>
+</div>
+{% else %}
+<form method="post">
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body" style="padding:0;">
+            <div class="table-wrap" style="border:none;">
+                <table class="data-table">
+                    <thead><tr><th style="width:2.5rem;"><input type="checkbox" onclick="document.querySelectorAll('.reg-check').forEach(c=>c.checked=this.checked)"></th><th>Student</th><th>Course</th><th>Lecturer</th><th>Prerequisites</th><th style="text-align:right;">Action</th></tr></thead>
+                    <tbody>
+                        {% for reg in pending %}
+                        <tr>
+                            <td><input type="checkbox" name="registration_ids" value="{{ reg.id }}" class="reg-check"></td>
+                            <td>
+                                <p style="font-weight:600;">{{ reg.student.user.full_name }}</p>
+                                <p class="text-xs text-muted mono">{{ reg.student.matric_number }} &middot; {{ reg.student.department.name }}</p>
+                            </td>
+                            <td>
+                                <span class="mono" style="font-weight:700;">{{ reg.course_offering.course.code }}</span>
+                                <p class="text-xs text-muted">{{ reg.course_offering.course.title }}</p>
+                            </td>
+                            <td class="text-sm">{{ reg.course_offering.lecturer.user.full_name|default:"Not assigned" }}</td>
+                            <td>
+                                {% if reg.check_prerequisites %}
+                                <span class="badge badge-success">Met</span>
+                                {% else %}
+                                <span class="badge badge-danger">Not Met</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                <div style="display:flex; gap:0.4rem; justify-content:flex-end;">
+                                    <button type="submit" form="reject-{{ reg.id }}" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger-border);">Reject</button>
+                                    <a href="{% url 'portal:eo_approve_registration' reg.id %}" class="btn btn-primary btn-sm" onclick="event.preventDefault(); document.getElementById('approve-{{ reg.id }}').submit();">Approve</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div style="padding:1rem 1.25rem; border-top:1px solid var(--slate-100); display:flex; justify-content:flex-end; gap:0.75rem;">
+                <button type="submit" name="action" value="reject" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger-border);"
+                        data-confirm="Reject all selected registrations?">Bulk Reject Selected</button>
+                <button type="submit" name="action" value="approve" class="btn btn-primary"
+                        data-confirm="Approve all selected registrations?">Bulk Approve Selected</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% for reg in pending %}
+<form method="post" action="{% url 'portal:eo_approve_registration' reg.id %}" id="approve-{{ reg.id }}" style="display:none;">
+    {% csrf_token %}<input type="hidden" name="action" value="approve">
+</form>
+<form method="post" action="{% url 'portal:eo_approve_registration' reg.id %}" id="reject-{{ reg.id }}" style="display:none;">
+    {% csrf_token %}<input type="hidden" name="action" value="reject"><input type="hidden" name="reason" value="Rejected by Exam Officer">
+</form>
+{% endfor %}
+{% endif %}
+{% endblock %}

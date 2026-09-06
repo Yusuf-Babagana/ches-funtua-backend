@@ -1,0 +1,71 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Examination Office{% endblock %}
+{% block page_subtitle %}{{ current_semester.session|default:"No Active Session" }} &middot; {{ current_semester.get_semester_display|default:"" }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ stats.courses_pending_results|default:0 }}</div><div class="stat-tile__label">Pending Results</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--info);">{{ stats.pending_registrations|default:0 }}</div><div class="stat-tile__label">Pending Registrations</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--success);">{{ exam_statistics.completed_courses|default:0 }}</div><div class="stat-tile__label">Processed Results</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:#7c3aed;">{{ stats.total_courses|default:0 }}</div><div class="stat-tile__label">Active Courses</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns: 7fr 5fr;">
+    <div class="card">
+        <div class="card-header"><p class="card-title">Recent Activity</p><p class="card-description">Latest grade uploads this week</p></div>
+        <div class="card-body">
+            {% if not recent_activities %}
+            <div style="text-align:center; padding:2rem; color:var(--slate-400);">No recent activity found.</div>
+            {% else %}
+            <div class="stack gap-3">
+                {% for grade in recent_activities %}
+                <div style="display:flex; justify-content:space-between; padding:0.6rem 0; border-bottom:1px solid var(--slate-50);">
+                    <div>
+                        <p style="font-weight:600; font-size:0.9rem;">Grades uploaded for {{ grade.course.code }}</p>
+                        <p class="text-xs text-muted">by {{ grade.uploaded_by.user.full_name|default:"Unknown" }}</p>
+                    </div>
+                    <span class="text-xs text-muted">{{ grade.created_at|date:"M j, H:i" }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="stack gap-4">
+        <div class="card">
+            <div class="card-header"><p class="card-title">Quick Actions</p></div>
+            <div class="card-body stack gap-3">
+                <a href="{% url 'portal:eo_registrations' %}" class="btn btn-outline" style="justify-content:space-between;">
+                    Registration Approvals
+                    {% if stats.pending_registrations %}<span class="badge badge-warning">{{ stats.pending_registrations }}</span>{% endif %}
+                </a>
+                <a href="{% url 'portal:eo_results' %}" class="btn btn-outline" style="justify-content:flex-start;">Result Compilation</a>
+            </div>
+        </div>
+
+        {% if deadlines %}
+        <div class="card" style="border-color:var(--danger-border);">
+            <div class="card-header"><p class="card-title" style="color:var(--danger);">Upcoming Deadlines</p></div>
+            <div class="card-body stack gap-2">
+                {% for d in deadlines %}
+                <div style="display:flex; justify-content:space-between; font-size:0.875rem;">
+                    <span>{{ d.title }}</span>
+                    <span class="text-muted mono">{{ d.date|date:"M j, Y" }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card" style="background:var(--teal-900); border:none; color:#fff;">
+            <div class="card-body">
+                <p class="text-xs" style="color:var(--teal-100); text-transform:uppercase; font-weight:700;">Session Pass Rate</p>
+                <p style="font-size:2.5rem; font-weight:800; color:#fff;">{{ exam_statistics.pass_rate|default:0 }}%</p>
+                <p class="text-xs" style="color:var(--teal-100);">Average across all departments</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

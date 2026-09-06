@@ -1,0 +1,46 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}System Tools{% endblock %}
+{% block page_subtitle %}Session rollover and bulk student promotion. Both are destructive, system-wide actions.{% endblock %}
+
+{% block dashboard_content %}
+<div class="grid grid-2">
+    <div class="card" style="border-color:var(--warning-border);">
+        <div class="card-header"><p class="card-title">Start New Session</p></div>
+        <div class="card-body">
+            <p class="text-sm text-muted" style="margin-bottom:1rem;">
+                Deactivates every existing semester, creates a new First Semester (120-day term, 21-day registration
+                window), and repoints every level's configuration at it.
+            </p>
+            {% if current_semester %}
+            <p class="text-xs text-muted" style="margin-bottom:1rem;">Current: <strong>{{ current_semester.session }} &mdash; {{ current_semester.get_semester_display }}</strong></p>
+            {% endif %}
+            <form method="post" action="{% url 'portal:sa_start_new_session' %}"
+                  data-confirm="Start a new session? This deactivates every existing semester.">
+                {% csrf_token %}
+                <div class="field"><label>New Session</label><input type="text" name="session" placeholder="2026/2027" required></div>
+                <div class="field"><label>Start Date</label><input type="date" name="start_date" required></div>
+                <button type="submit" class="btn btn-primary btn-block">Start New Session</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card" style="border-color:var(--danger-border);">
+        <div class="card-header"><p class="card-title">Promote Students</p></div>
+        <div class="card-body">
+            <p class="text-sm text-muted" style="margin-bottom:1rem;">
+                300 &rarr; Graduated, 200 &rarr; 300, 100 &rarr; 200, for every active student. This is a purely
+                administrative bulk action &mdash; it does not check CGPA, credits completed, or clearance status.
+            </p>
+            <form method="post" action="{% url 'portal:sa_promote_students' %}"
+                  data-confirm="Promote every active student a level (300-level students graduate)? This cannot be undone.">
+                {% csrf_token %}
+                <input type="hidden" name="confirm" value="yes">
+                <button type="submit" class="btn btn-block" style="color:var(--danger); border:1px solid var(--danger-border); background:var(--danger-bg);">
+                    Promote All Students
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

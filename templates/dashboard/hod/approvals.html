@@ -1,0 +1,40 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Result Approvals{% endblock %}
+{% block page_subtitle %}Review and approve course results submitted by lecturers.{% endblock %}
+
+{% block dashboard_content %}
+<div style="display:flex; justify-content:flex-end; margin-bottom:1.25rem;">
+    <span class="badge badge-warning">{{ pending|length }} Pending Review</span>
+</div>
+
+{% if not pending %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3.5rem 1.5rem;">
+        <h3 class="card-title" style="color:var(--success);">All Caught Up!</h3>
+        <p class="card-description">There are no pending results requiring your approval at this time.</p>
+    </div>
+</div>
+{% else %}
+<div class="grid grid-3">
+    {% for row in pending %}
+    <div class="card">
+        <div class="card-header">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="badge badge-neutral mono">{{ row.course.code }}</span>
+                <span class="badge badge-warning">Awaiting Action</span>
+            </div>
+            <p class="card-title" style="margin-top:0.5rem;">{{ row.course.title }}</p>
+        </div>
+        <div class="card-body">
+            <div style="display:flex; gap:0.75rem; margin-bottom:1rem;">
+                <span class="badge badge-neutral">{{ row.pending_count }} Grades</span>
+                <span class="badge badge-danger">{{ row.failed_count }} Failed</span>
+            </div>
+            <a href="{% url 'portal:hod_approval_detail' row.course.id %}" class="btn btn-outline btn-block">Review Results &rarr;</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

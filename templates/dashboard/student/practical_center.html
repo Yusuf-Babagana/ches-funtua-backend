@@ -1,0 +1,47 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Practical Center{% endblock %}
+{% block page_subtitle %}Choose the center where you'll complete your practicals this session.{% endblock %}
+
+{% block dashboard_content %}
+{% if not has_paid %}
+<div class="alert alert-warning">
+    You need to pay the Practical Fee before you can select a center.
+    <a href="{% url 'portal:student_fee_catalog' %}">Go to Fee Catalog</a>.
+</div>
+{% else %}
+
+{% if selection %}
+<div class="alert alert-success" style="margin-bottom:1.5rem;">
+    Your current selection for {{ session }} is <strong>{{ selection.center.name }}</strong>{% if selection.center.location %} ({{ selection.center.location }}){% endif %}.
+    You can change it below before the deadline.
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        {% if not centers %}
+        <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">No practical centers are available yet. Check back later.</div>
+        {% else %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="stack gap-0">
+                {% for center in centers %}
+                <label class="course-pick" style="display:flex; align-items:center; gap:0.85rem; padding:1rem 1.25rem; border-bottom:1px solid var(--slate-100);">
+                    <input type="radio" name="center_id" value="{{ center.id }}" {% if selection.center_id == center.id %}checked{% endif %} required>
+                    <div>
+                        <p style="font-weight:700;">{{ center.name }}</p>
+                        {% if center.location %}<p class="text-sm text-muted">{{ center.location }}</p>{% endif %}
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+            <div style="padding:1rem 1.25rem; border-top:1px solid var(--slate-100);">
+                <button type="submit" class="btn btn-primary">{% if selection %}Update Selection{% else %}Confirm Selection{% endif %}</button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

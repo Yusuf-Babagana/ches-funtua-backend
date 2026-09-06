@@ -1,0 +1,52 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Student Search{% endblock %}
+{% block page_subtitle %}Search by name, matric number, email, or phone.{% endblock %}
+
+{% block dashboard_content %}
+<form method="get" style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem;">
+    <input type="text" name="q" placeholder="Search..." value="{{ query }}"
+           style="flex:1; min-width:14rem; padding:0.6rem 0.85rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+    <select name="department" onchange="this.form.submit()" style="padding:0.6rem; border:1px solid var(--slate-200); border-radius:var(--radius);">
+        <option value="">All Departments</option>
+        {% for dept in departments %}
+        <option value="{{ dept.id }}" {% if filters.department == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+{% if results is None %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">Enter a search term, or filter by department, to find students.</div>
+</div>
+{% elif not results %}
+<div class="alert alert-info">No students found matching your search.</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Student</th><th>Matric No.</th><th>Registration</th><th>Fees</th><th>Docs</th><th>Queries</th><th></th></tr></thead>
+                <tbody>
+                    {% for row in results %}
+                    <tr>
+                        <td>
+                            <p style="font-weight:600;">{{ row.student.user.full_name }}</p>
+                            <p class="text-xs text-muted">{{ row.student.department.name|default:"N/A" }} &middot; L{{ row.student.level }}</p>
+                        </td>
+                        <td class="mono">{{ row.student.matric_number }}</td>
+                        <td><span class="badge badge-neutral">{{ row.registration_status|title }}</span></td>
+                        <td><span class="badge {% if row.payment_status == 'paid' %}badge-success{% else %}badge-warning{% endif %}">{{ row.payment_status|title }}</span></td>
+                        <td>{% if row.pending_documents %}<span class="badge badge-warning">{{ row.pending_documents }} pending</span>{% else %}&mdash;{% endif %}</td>
+                        <td>{% if row.open_queries %}<span class="badge badge-danger">{{ row.open_queries }} open</span>{% else %}&mdash;{% endif %}</td>
+                        <td><a href="{% url 'portal:do_student_profile' row.student.id %}" class="btn btn-outline btn-sm">View</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

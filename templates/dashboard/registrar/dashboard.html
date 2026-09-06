@@ -1,0 +1,105 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Registrar Dashboard{% endblock %}
+{% block page_subtitle %}Welcome back, {{ request.user.first_name }}.{% endblock %}
+
+{% block dashboard_content %}
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-tile"><div class="stat-tile__value">{{ stats.total_students }}</div><div class="stat-tile__label">Total Students</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--teal-600);">{{ stats.total_departments }}</div><div class="stat-tile__label">Departments</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:#6366f1;">{{ stats.total_courses }}</div><div class="stat-tile__label">Courses</div></div>
+    <div class="stat-tile"><div class="stat-tile__value" style="color:var(--warning);">{{ stats.pending_admissions }}</div><div class="stat-tile__label">Pending Admissions</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns: 7fr 5fr;">
+    <div class="stack gap-4">
+        <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <p class="card-title">Recent Students</p>
+                <a href="{% url 'portal:registrar_students' %}" class="btn btn-outline btn-sm">View All</a>
+            </div>
+            <div class="card-body">
+                {% if not recent_students %}
+                <div style="text-align:center; padding:2rem; color:var(--slate-400);">No student records found.</div>
+                {% else %}
+                <div class="stack gap-2">
+                    {% for student in recent_students %}
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0.25rem; border-bottom:1px solid var(--slate-50);">
+                        <div style="display:flex; align-items:center; gap:0.6rem;">
+                            <div style="height:2.2rem; width:2.2rem; border-radius:999px; background:var(--teal-50); border:1px solid var(--teal-100); display:flex; align-items:center; justify-content:center; color:var(--teal-700); font-weight:700; font-size:0.7rem;">
+                                {{ student.user.first_name|slice:":1" }}{{ student.user.last_name|slice:":1" }}
+                            </div>
+                            <div>
+                                <p style="font-weight:600; font-size:0.9rem;">{{ student.user.full_name }}</p>
+                                <p class="text-xs text-muted">{{ student.user.email }}</p>
+                            </div>
+                        </div>
+                        <span class="badge badge-neutral">{{ student.department.code|default:"—" }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><p class="card-title">Registrar's Office Functions</p></div>
+            <div class="card-body">
+                <div class="grid grid-3">
+                    <div>
+                        <p style="font-weight:700; margin-bottom:0.4rem;">Student Records</p>
+                        <p class="text-sm text-muted">Maintain academic records, process applications, manage enrollment status.</p>
+                    </div>
+                    <div>
+                        <p style="font-weight:700; margin-bottom:0.4rem;">Course Management</p>
+                        <p class="text-sm text-muted">Oversee registration, academic calendar, exam scheduling.</p>
+                    </div>
+                    <div>
+                        <p style="font-weight:700; margin-bottom:0.4rem;">Certification</p>
+                        <p class="text-sm text-muted">Issue transcripts, publish results, verify credentials.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stack gap-4">
+        <div class="card">
+            <div class="card-header"><p class="card-title">Quick Actions</p></div>
+            <div class="card-body stack gap-3">
+                <a href="{% url 'portal:registrar_applications' %}" class="btn btn-outline" style="justify-content:space-between;">
+                    Admissions &amp; Matriculation
+                    {% if stats.pending_matric_assignments %}<span class="badge badge-warning">{{ stats.pending_matric_assignments }}</span>{% endif %}
+                </a>
+                <a href="{% url 'portal:registrar_publication' %}" class="btn btn-outline" style="justify-content:space-between;">
+                    Publish Results
+                    {% if stats.pending_publications %}<span class="badge badge-warning">{{ stats.pending_publications }}</span>{% endif %}
+                </a>
+                <a href="{% url 'portal:registrar_students' %}" class="btn btn-outline" style="justify-content:flex-start;">Student Records</a>
+                <a href="{% url 'portal:registrar_transcript' %}" class="btn btn-outline" style="justify-content:flex-start;">Generate Transcripts</a>
+            </div>
+        </div>
+
+        {% if deadlines %}
+        <div class="card">
+            <div class="card-header"><p class="card-title">Upcoming Deadlines</p></div>
+            <div class="card-body stack gap-2">
+                {% for d in deadlines %}
+                <div style="display:flex; justify-content:space-between; font-size:0.875rem;">
+                    <span>{{ d.title }}</span>
+                    <span class="text-muted mono">{{ d.date|date:"M j, Y" }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card" style="background:linear-gradient(135deg, var(--teal-700), var(--teal-900)); border:none; color:#fff;">
+            <div class="card-body">
+                <p style="font-weight:700; font-size:1.1rem; color:#fff;">{{ current_semester.get_semester_display|default:"Unknown" }} Semester</p>
+                <p style="opacity:0.85; font-size:0.875rem; margin-top:0.25rem;">Session: {{ current_semester.session|default:"N/A" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

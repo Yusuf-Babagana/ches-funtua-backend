@@ -27,6 +27,7 @@ from .permissions import IsICTOfficer
 
 # Import from other apps
 from academics.models import Department, Course, Semester
+from academics.constants import MAX_CREDIT_UNITS_PAID
 
 
 # ==============================================
@@ -292,7 +293,23 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         elif self.action in ['update', 'partial_update']:
             return UserUpdateSerializer
         return UserSerializer
-    
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        ModelViewSet's default destroy() had no guard at all -- an ICT
+        officer could DELETE a Super Admin account outright through this
+        endpoint, completely bypassing the super-admin protection added
+        to reset_password/toggle_active_status/bulk_actions below (Phase
+        10). Closed the same way those three were.
+        """
+        user = self.get_object()
+        if user.role == 'super-admin' and request.user.role != 'super-admin':
+            return Response(
+                {'error': 'ICT officers cannot delete a Super Admin account.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
+
     @action(detail=False, methods=['get'])
     def user_statistics(self, request):
         """Get detailed user statistics"""
@@ -431,7 +448,19 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     def reset_password(self, request, pk=None):
         """Reset user password (ICT officer function)"""
         user = self.get_object()
-        
+
+        # An ICT officer (not a super-admin themselves) could otherwise
+        # reset a super-admin's password -- CanManageAllUsers/
+        # CanResetPasswords exist in .permissions specifically to prevent
+        # this but were never wired to any view (see
+        # college_cms_migration_inventory.md S1.5). Closed here directly
+        # rather than relying on those unused permission classes.
+        if user.role == 'super-admin' and request.user.role != 'super-admin':
+            return Response(
+                {'error': 'ICT officers cannot reset a Super Admin account\'s password.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = UserPasswordResetSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -464,7 +493,14 @@ class UserManagementViewSet(viewsets.ModelViewSet):
                 {'error': 'You cannot deactivate your own account'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        # Same super-admin protection as reset_password above.
+        if user.role == 'super-admin' and request.user.role != 'super-admin':
+            return Response(
+                {'error': 'ICT officers cannot activate/deactivate a Super Admin account.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         user.is_active = not user.is_active
         user.save()
         
@@ -511,9 +547,20 @@ class UserManagementViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_actions(self, request):
         """Perform bulk actions on users"""
-        user_ids = request.data.get('user_ids', [])
+        # See the identical fix + explanation in users/views.py's
+        # UserViewSet.bulk_actions -- request.data.get('user_ids', [])
+        # silently collapses a multi-value form/multipart field to its
+        # LAST value only.
+        if hasattr(request.data, 'getlist'):
+            user_ids = request.data.getlist('user_ids')
+        else:
+            user_ids = request.data.get('user_ids', [])
+        try:
+            user_ids = [int(uid) for uid in user_ids]
+        except (TypeError, ValueError):
+            return Response({'error': 'user_ids must be a list of integer ids'}, status=status.HTTP_400_BAD_REQUEST)
         action = request.data.get('action')
-        
+
         if not user_ids or not action:
             return Response(
                 {'error': 'user_ids and action are required'},
@@ -529,8 +576,13 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         # Remove request user from list to prevent self-modification
         if request.user.id in user_ids:
             user_ids.remove(request.user.id)
-        
+
         users = User.objects.filter(id__in=user_ids)
+        # Same super-admin protection as reset_password/toggle_active_status
+        # above -- an ICT officer's bulk action must never touch a
+        # Super Admin account (activate, deactivate, OR delete).
+        if request.user.role != 'super-admin':
+            users = users.exclude(role='super-admin')
         
         if action == 'activate':
             users.update(is_active=True)
@@ -1148,7 +1200,7 @@ class SystemConfigurationViewSet(viewsets.ViewSet):
             'result_publication': True,  # Placeholder
             'maintenance_mode': False,
             'allow_new_registrations': True,
-            'max_courses_per_semester': 6,
+            'max_credit_units_per_semester': MAX_CREDIT_UNITS_PAID,  # was a stale, unrelated "6 courses" display value
             'min_attendance_percentage': 75,
             'passing_grade': 'D',
             'gpa_calculation_method': '4.0 scale'
