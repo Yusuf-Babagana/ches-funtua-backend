@@ -9,9 +9,9 @@
 
     <aside class="dash__sidebar" id="dash-sidebar">
         <div class="dash__brand">
-            <div class="dash__brand-mark">CF</div>
+            <div class="dash__brand-mark dash__brand-mark--logo">CF</div>
             <div class="dash__brand-text">
-                <strong>FUNTUA</strong>
+                <strong>College of Health and Environmental Sciences Funtua</strong>
                 <span>Academic Portal</span>
             </div>
         </div>
@@ -30,7 +30,13 @@
 
         <div class="dash__user">
             <div class="dash__user-row">
-                <div class="dash__avatar">{{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}</div>
+                <form method="post" action="{% url 'portal:update_profile_picture' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <label class="dash__avatar" title="Click to change your profile picture" style="cursor:pointer; overflow:hidden;{% if request.user.profile_picture %} background-image:url('{{ request.user.profile_picture.url }}'); background-size:cover; background-position:center; color:transparent;{% endif %}">
+                        {% if not request.user.profile_picture %}{{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}{% endif %}
+                        <input type="file" name="profile_picture" accept="image/*" style="display:none;" onchange="this.form.submit()">
+                    </label>
+                </form>
                 <div style="min-width:0;">
                     <p class="dash__user-name">{{ request.user.full_name|default:request.user.email }}</p>
                     <p class="dash__user-role">{{ request.user.role|role_label }}</p>
@@ -46,8 +52,8 @@
     <div class="dash__main">
         <div class="dash__topbar">
             <div class="dash__brand" style="border:none;padding:0;height:auto;">
-                <div class="dash__brand-mark" style="height:1.9rem;width:1.9rem;font-size:0.7rem;">CF</div>
-                <strong>Funtua</strong>
+                <div class="dash__brand-mark dash__brand-mark--logo" style="height:1.9rem;width:1.9rem;font-size:0.7rem;">CF</div>
+                <strong style="font-weight:800;">CHES Funtua</strong>
             </div>
             <button type="button" class="dash__menu-btn" data-sidebar-toggle aria-label="Open menu">&#9776;</button>
         </div>

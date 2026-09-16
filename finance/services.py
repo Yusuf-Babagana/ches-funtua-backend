@@ -212,9 +212,12 @@ class FinanceService:
         try:
             from .models import FeeStructure
             amount = 150000.00
-            fee_struct = FeeStructure.objects.filter(
+            base_qs = FeeStructure.objects.filter(
                 level=student.level, department=student.department, is_active=True,
-            ).first()
+            )
+            fee_struct = base_qs.filter(
+                session=current_semester.session, semester=current_semester.semester,
+            ).first() or base_qs.first()
             if fee_struct:
                 amount = fee_struct.total_fee
 

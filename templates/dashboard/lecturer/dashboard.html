@@ -39,9 +39,13 @@
 
 <div class="card" style="margin-bottom:1.5rem;">
     <div class="card-body" style="display:flex; align-items:center; gap:1.25rem;">
-        <div style="height:4rem; width:4rem; border-radius:999px; background:var(--teal-50); border:1px solid var(--teal-100); display:flex; align-items:center; justify-content:center; color:var(--teal-700); font-weight:800;">
-            {{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}
-        </div>
+        <form method="post" action="{% url 'portal:update_profile_picture' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label title="Click to change your profile picture" style="cursor:pointer; overflow:hidden; height:4rem; width:4rem; border-radius:999px; background:var(--teal-50); border:1px solid var(--teal-100); display:flex; align-items:center; justify-content:center; color:var(--teal-700); font-weight:800;{% if request.user.profile_picture %} background-image:url('{{ request.user.profile_picture.url }}'); background-size:cover; background-position:center; color:transparent;{% endif %}">
+                {% if not request.user.profile_picture %}{{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}{% endif %}
+                <input type="file" name="profile_picture" accept="image/*" style="display:none;" onchange="this.form.submit()">
+            </label>
+        </form>
         <div>
             <h2 style="font-size:1.3rem;">{{ request.user.full_name }}</h2>
             <div class="text-sm text-muted" style="display:flex; gap:0.6rem; margin-top:0.35rem; align-items:center;">

@@ -12,12 +12,16 @@
         <div style="height:0.4rem; background:linear-gradient(90deg, var(--teal-500), var(--emerald-500));"></div>
         <div class="card-body" style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:1.5rem; align-items:center;">
             <div style="display:flex; align-items:center; gap:1.25rem;">
-                <div style="height:4.5rem; width:4.5rem; border-radius:999px; background:var(--teal-50); border:2px solid var(--teal-100); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--teal-700); font-size:1.4rem;">
-                    {{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}
-                </div>
+                <form method="post" action="{% url 'portal:update_profile_picture' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <label title="Click to change your profile picture" style="cursor:pointer; overflow:hidden; height:4.5rem; width:4.5rem; border-radius:999px; background:var(--teal-50); border:2px solid var(--teal-100); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--teal-700); font-size:1.4rem;{% if request.user.profile_picture %} background-image:url('{{ request.user.profile_picture.url }}'); background-size:cover; background-position:center; color:transparent;{% endif %}">
+                        {% if not request.user.profile_picture %}{{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}{% endif %}
+                        <input type="file" name="profile_picture" accept="image/*" style="display:none;" onchange="this.form.submit()">
+                    </label>
+                </form>
                 <div>
                     <h2 style="font-size:1.5rem; color:var(--slate-900);">Welcome, {{ request.user.first_name }}</h2>
-                    <div class="text-sm text-muted" style="margin-top:0.4rem; display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+                    <div class="text-sm" style="margin-top:0.4rem; display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; font-weight:700; color:var(--slate-700);">
                         <span class="mono badge badge-neutral">{{ student.matric_number }}</span>
                         <span>{{ student.department.name|default:"Unassigned" }}</span>
                         <span>Level {{ student.level }}</span>
@@ -31,7 +35,7 @@
 
         <div class="grid grid-4" style="padding: 0 1.5rem 1.5rem;">
             <div class="stat-tile">
-                <div class="stat-tile__value">{{ schedule|length }}</div>
+                <div class="stat-tile__value" style="color:var(--emerald-600);">{{ schedule|length }}</div>
                 <div class="stat-tile__label">Enrolled</div>
             </div>
             <div class="stat-tile">
@@ -136,37 +140,27 @@
             {% endif %}
         </div>
 
-        {# --- RIGHT: my schedule --- #}
+        {# --- RIGHT: semester countdown --- #}
         <div class="stack gap-3">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="font-size:1.05rem;">My Schedule</h3>
-                <a href="{% url 'portal:student_print_schedule' %}" class="btn btn-outline btn-sm">Print</a>
-            </div>
-            <div class="card">
-                <div class="card-body" style="padding:0;">
-                    {% if not schedule %}
-                    <div style="text-align:center; padding:3rem 1.5rem; color:var(--slate-400);">
-                        <p style="font-weight:600; color:var(--slate-600);">Your schedule is empty.</p>
-                        <p class="text-sm" style="margin-top:0.25rem;">Register for courses to see them here.</p>
-                    </div>
-                    {% else %}
-                    {% for row in schedule %}
-                    <div style="padding:1rem 1.25rem; border-bottom:1px solid var(--slate-100);">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                            <div>
-                                <span style="font-weight:700;">{{ row.course.code }}</span>
-                                <span class="badge badge-success" style="margin-left:0.4rem;">{{ row.course.credits }}u</span>
-                                <p class="text-sm text-muted" style="margin-top:0.25rem;">{{ row.course.title }}</p>
-                            </div>
-                        </div>
-                        <p class="text-xs text-muted" style="margin-top:0.4rem;">{{ row.lecturer_name }}</p>
-                    </div>
-                    {% endfor %}
-                    <div style="padding:0.75rem; text-align:center; background:var(--success-bg);">
-                        <p class="text-xs" style="color:var(--success); font-weight:600;">Total Registered Units: {{ total_credits }}</p>
-                    </div>
-                    {% endif %}
+            <h3 style="font-size:1.05rem;">Semester Countdown</h3>
+            <div class="card" style="overflow:hidden;">
+                {% if reg_status.has_current_semester %}
+                <div style="height:0.4rem; background:linear-gradient(90deg, var(--teal-500), var(--emerald-500));"></div>
+                <div class="card-body" style="text-align:center; padding:1.75rem 1.5rem;">
+                    <p class="text-xs text-muted" style="text-transform:uppercase; letter-spacing:0.05em; font-weight:600;">
+                        {{ reg_status.current_semester.session }} &middot; {{ reg_status.current_semester.get_semester_display }}
+                    </p>
+                    <p style="font-size:2.25rem; font-weight:800; color:var(--slate-900); margin-top:0.5rem;">
+                        {{ reg_status.current_semester.end_date|timeuntil }}
+                    </p>
+                    <p class="text-sm text-muted" style="margin-top:0.25rem;">remaining until semester ends ({{ reg_status.current_semester.end_date|date:"M j, Y" }})</p>
                 </div>
+                {% else %}
+                <div class="card-body" style="text-align:center; padding:2.5rem 1.5rem; color:var(--slate-400);">
+                    <p style="font-weight:600; color:var(--slate-600);">No active semester.</p>
+                    <p class="text-sm" style="margin-top:0.25rem;">Check back once the next semester begins.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

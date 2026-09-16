@@ -2,10 +2,13 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
 from .forms import LoginForm
 from .roles import ROLE_DASHBOARD_URL_NAME
+
+MAX_PROFILE_PICTURE_BYTES = 3 * 1024 * 1024
 
 
 def landing(request):
@@ -70,6 +73,36 @@ def dashboard_root(request):
         messages.error(request, 'Your account has no recognized role. Contact ICT support.')
         return redirect('portal:landing')
     return redirect(url_name)
+
+
+@login_required
+@require_http_methods(['POST'])
+def update_profile_picture(request):
+    """
+    Shared avatar upload for every role -- profile_picture lives on the
+    base User model (users/models.py), not per-role, so one endpoint
+    serves the sidebar upload widget in templates/dashboard/base.html
+    regardless of which dashboard the user is on.
+    """
+    fallback_url = ROLE_DASHBOARD_URL_NAME.get(request.user.role, 'portal:dashboard_root')
+    referer = request.META.get('HTTP_REFERER')
+    next_url = referer if referer and url_has_allowed_host_and_scheme(
+        referer, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ) else None
+
+    photo = request.FILES.get('profile_picture')
+    if not photo:
+        messages.error(request, 'No file selected.')
+    elif not (photo.content_type or '').startswith('image/'):
+        messages.error(request, 'Please upload an image file.')
+    elif photo.size > MAX_PROFILE_PICTURE_BYTES:
+        messages.error(request, 'Image must be smaller than 3MB.')
+    else:
+        request.user.profile_picture = photo
+        request.user.save(update_fields=['profile_picture', 'updated_at'])
+        messages.success(request, 'Profile picture updated.')
+
+    return redirect(next_url) if next_url else redirect(fallback_url)
 
 
 # _placeholder_dashboard (and the per-role dashboard_* views that used

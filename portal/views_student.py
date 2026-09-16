@@ -30,7 +30,7 @@ NAV = [
     {'label': 'Transcript', 'url_name': 'portal:student_transcript'},
     {'label': 'Exam Card', 'url_name': 'portal:student_exam_card'},
     {'label': 'Fees', 'url_name': 'portal:student_fees'},
-    {'label': 'Fee Catalog', 'url_name': 'portal:student_fee_catalog'},
+    {'label': 'Other Charges', 'url_name': 'portal:student_fee_catalog'},
     {'label': 'Carry-Over', 'url_name': 'portal:student_carryover'},
     {'label': 'Support', 'url_name': 'portal:student_support'},
     {'label': 'Payments', 'url_name': 'portal:student_payments'},
@@ -309,7 +309,7 @@ def fee_catalog(request):
     catalog = svc.get_fee_catalog(student)
     return render(request, 'dashboard/student/fee_catalog.html', _ctx(
         request, 'portal:student_fee_catalog',
-        page_title='Fee Catalog',
+        page_title='Other Charges',
         catalog=catalog,
     ))
 

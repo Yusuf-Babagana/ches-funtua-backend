@@ -72,15 +72,18 @@ class StudentFinanceViewSet(viewsets.ViewSet):
         # This prevents the student dashboard from breaking if the Bursar hasn't run the bulk job yet.
         try:
             # Default amount
-            amount = 150000.00 
-            
-            # Check for FeeStructure
-            fee_struct = FeeStructure.objects.filter(
-                level=student.level, 
+            amount = 150000.00
+
+            # Check for FeeStructure (prefer one scoped to this exact session+semester)
+            base_qs = FeeStructure.objects.filter(
+                level=student.level,
                 department=student.department,
                 is_active=True
-            ).first()
-            
+            )
+            fee_struct = base_qs.filter(
+                session=current_semester.session, semester=current_semester.semester,
+            ).first() or base_qs.first()
+
             if fee_struct:
                 amount = fee_struct.total_fee
 

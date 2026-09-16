@@ -46,7 +46,7 @@
                     </div>
                 {% elif row.is_paid %}
                     <span class="badge badge-success" style="margin-bottom:0.4rem; display:inline-block;">Registered &amp; Paid</span><br>
-                    <a href="{% url 'portal:student_carryover_slip' row.registration.id %}" class="btn btn-outline btn-sm">Print Slip</a>
+                    <a href="{% url 'portal:student_carryover_slip' row.registration.id %}" class="btn btn-outline btn-sm">Print / Download Slip</a>
                 {% else %}
                     <p class="text-sm text-muted" style="margin-bottom:0.4rem;">Registered &middot; exam fee not yet priced by the Bursar</p>
                     <div style="display:flex; gap:0.5rem; justify-content:flex-end;">

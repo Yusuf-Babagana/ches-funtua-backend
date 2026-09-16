@@ -13,6 +13,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
 
     path('dashboard/', views.dashboard_root, name='dashboard_root'),
+    path('profile/picture/', views.update_profile_picture, name='update_profile_picture'),
 
     # --- Student (Phase 3 -- fully migrated) ---
     path('dashboard/student/', views_student.dashboard, name='dashboard_student'),
