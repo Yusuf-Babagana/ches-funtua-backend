@@ -1,0 +1,66 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Assign Task{% endblock %}
+{% block page_subtitle %}Assign a task to any staff member; they'll see it under "My Tasks" and get a notification.{% endblock %}
+
+{% block dashboard_content %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-header"><p class="card-title">New Task</p></div>
+    <div class="card-body">
+        <form method="post" action="{% url 'portal:sa_create_task' %}">
+            {% csrf_token %}
+            <div class="grid grid-2">
+                <div class="field">
+                    <label>Assign To</label>
+                    <select name="assigned_to" required>
+                        <option value="">Select staff member</option>
+                        {% for member in staff %}
+                        <option value="{{ member.id }}">{{ member.get_full_name }} &middot; {{ member.get_role_display }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Due Date (optional)</label>
+                    <input type="date" name="due_date">
+                </div>
+            </div>
+            <div class="field">
+                <label>Title</label>
+                <input type="text" name="title" required maxlength="200">
+            </div>
+            <div class="field">
+                <label>Description (optional)</label>
+                <textarea name="description" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Assign Task</button>
+        </form>
+    </div>
+</div>
+
+<h3 style="font-size:1.05rem; margin-bottom:1rem;">Previously Assigned</h3>
+{% if not tasks %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:2.5rem 1.5rem;">
+        <p class="card-description">No tasks assigned yet.</p>
+    </div>
+</div>
+{% else %}
+<div class="stack gap-2">
+    {% for task in tasks %}
+    <div class="card">
+        <div class="card-body" style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <div>
+                <p style="font-weight:700;">{{ task.title }}</p>
+                <p class="text-sm text-muted">{{ task.assigned_to.get_full_name }} &middot; {{ task.assigned_to.get_role_display }}</p>
+            </div>
+            <div style="text-align:right;">
+                {% if task.status == 'completed' %}<span class="badge badge-success">Completed</span>
+                {% else %}<span class="badge badge-warning">{{ task.get_status_display }}</span>{% endif %}
+                <p class="text-xs text-muted" style="margin-top:0.35rem;">{{ task.created_at|date:"M j, Y" }}</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

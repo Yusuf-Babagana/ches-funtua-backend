@@ -22,6 +22,7 @@ NAV = [
     {'label': 'Students', 'url_name': 'portal:registrar_students'},
     {'label': 'Result Publication', 'url_name': 'portal:registrar_publication'},
     {'label': 'Transcripts', 'url_name': 'portal:registrar_transcript'},
+    {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
 ]
 
 

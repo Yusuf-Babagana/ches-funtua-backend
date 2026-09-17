@@ -28,6 +28,8 @@ NAV = [
     {'label': 'Semesters', 'url_name': 'portal:sa_semesters'},
     {'label': 'Level Config', 'url_name': 'portal:sa_level_config'},
     {'label': 'System Tools', 'url_name': 'portal:sa_system_tools'},
+    {'label': 'Assign Task', 'url_name': 'portal:sa_assign_task'},
+    {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
     {'label': 'ICT: Users', 'url_name': 'portal:ict_user_management'},
     {'label': 'ICT: Departments', 'url_name': 'portal:ict_system_config'},
     {'label': 'ICT: Staff Accounts', 'url_name': 'portal:ict_staff_accounts'},
@@ -204,3 +206,28 @@ def promote_students(request):
         f"{summary['promoted_to_200']} promoted to 200 level.",
     )
     return redirect('portal:sa_system_tools')
+
+
+@role_required('super-admin')
+def assign_task(request):
+    return render(request, 'dashboard/super_admin/tasks.html', {
+        'nav_items': _nav('portal:sa_assign_task'),
+        'page_title': 'Assign Task',
+        'staff': svc.get_assignable_staff(),
+        'tasks': svc.get_assigned_tasks(),
+    })
+
+
+@role_required('super-admin')
+@require_POST
+def create_task(request):
+    task, error = svc.assign_task(
+        request.user, request.POST.get('assigned_to'),
+        request.POST.get('title', ''), request.POST.get('description', ''),
+        request.POST.get('due_date', ''),
+    )
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, f'Task assigned to {task.assigned_to.get_full_name()}.')
+    return redirect('portal:sa_assign_task')

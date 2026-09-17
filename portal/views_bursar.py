@@ -17,6 +17,7 @@ NAV = [
     {'label': 'Fee Catalog', 'url_name': 'portal:bursar_fee_items'},
     {'label': 'Verify Payments', 'url_name': 'portal:bursar_verify_payments'},
     {'label': 'Receipts', 'url_name': 'portal:bursar_receipts'},
+    {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
 ]
 
 

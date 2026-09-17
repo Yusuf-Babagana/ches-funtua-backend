@@ -32,6 +32,7 @@ NAV = [
     {'label': 'Results Upload', 'url_name': 'portal:ict_results_upload'},
     {'label': 'System Config', 'url_name': 'portal:ict_system_config'},
     {'label': 'User Management', 'url_name': 'portal:ict_user_management'},
+    {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
 ]
 
 

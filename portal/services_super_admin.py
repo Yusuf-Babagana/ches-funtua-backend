@@ -45,8 +45,9 @@ from datetime import datetime, timedelta
 from django.db import transaction
 from django.db.models import Q
 
-from academics.models import AcademicLevelConfiguration, Course, Department, Semester
-from users.models import Lecturer, Student
+from academics.constants import STAFF_ROLES
+from academics.models import AcademicLevelConfiguration, AssignedTask, Course, Department, Semester
+from users.models import Lecturer, Student, User
 
 LEVEL_CHOICES = [('100', '100 Level'), ('200', '200 Level'), ('300', '300 Level')]
 SEMESTER_CHOICES = [('first', 'First Semester'), ('second', 'Second Semester')]
@@ -301,3 +302,41 @@ def promote_students():
         to_300 = Student.objects.filter(level='200', status='active').update(level='300')
         to_200 = Student.objects.filter(level='100', status='active').update(level='200')
     return {'graduated': graduated, 'promoted_to_300': to_300, 'promoted_to_200': to_200}
+
+
+# ---------------------------------------------------------------------------
+# Assigned Tasks (item #18 -- "Other Assigned Task" staff feature)
+# ---------------------------------------------------------------------------
+
+def get_assignable_staff():
+    return User.objects.filter(role__in=STAFF_ROLES).order_by('first_name', 'last_name')
+
+
+def get_assigned_tasks():
+    return AssignedTask.objects.select_related('assigned_to', 'assigned_by')
+
+
+def assign_task(assigned_by, assigned_to_id, title, description, due_date):
+    title = (title or '').strip()
+    if not title:
+        return None, 'Title is required.'
+    try:
+        assigned_to = User.objects.get(id=assigned_to_id, role__in=STAFF_ROLES)
+    except (User.DoesNotExist, ValueError, TypeError):
+        return None, 'Select a valid staff member.'
+
+    if due_date:
+        try:
+            due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+        except ValueError:
+            due_date = None
+    else:
+        due_date = None
+
+    task = AssignedTask.objects.create(
+        assigned_to=assigned_to, assigned_by=assigned_by,
+        title=title, description=(description or '').strip(), due_date=due_date,
+    )
+    from .services_notifications import create_notification_for_task
+    create_notification_for_task(task)
+    return task, None

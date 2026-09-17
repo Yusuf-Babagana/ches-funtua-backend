@@ -31,6 +31,24 @@
     if (toggleBtn) toggleBtn.addEventListener('click', openSidebar);
     if (overlay) overlay.addEventListener('click', closeSidebar);
 
+    // Notification bell dropdown. Markup: button[data-notif-toggle] and
+    // the panel it opens (#notif-panel). Same is-open toggle convention
+    // as the sidebar above, plus a click-outside-to-close listener since
+    // this one isn't full-screen.
+    var notifToggle = document.querySelector('[data-notif-toggle]');
+    var notifPanel = document.getElementById('notif-panel');
+    if (notifToggle && notifPanel) {
+        notifToggle.addEventListener('click', function (e) {
+            e.stopPropagation();
+            notifPanel.classList.toggle('is-open');
+        });
+        document.addEventListener('click', function (e) {
+            if (!notifPanel.contains(e.target) && !notifToggle.contains(e.target)) {
+                notifPanel.classList.remove('is-open');
+            }
+        });
+    }
+
     // Generic "confirm before submitting" for destructive forms/buttons:
     // <button data-confirm="Drop this course?">...
     document.addEventListener('click', function (e) {

@@ -14,6 +14,9 @@ urlpatterns = [
 
     path('dashboard/', views.dashboard_root, name='dashboard_root'),
     path('profile/picture/', views.update_profile_picture, name='update_profile_picture'),
+    path('notifications/', views.notifications_list, name='notifications'),
+    path('tasks/', views.my_tasks, name='my_tasks'),
+    path('tasks/<int:task_id>/complete/', views.complete_task, name='complete_task'),
 
     # --- Student (Phase 3 -- fully migrated) ---
     path('dashboard/student/', views_student.dashboard, name='dashboard_student'),
@@ -108,6 +111,7 @@ urlpatterns = [
     path('dashboard/desk-officer/payments/', views_desk_officer.payments, name='do_payments'),
     path('dashboard/desk-officer/payments/<int:payment_id>/verify/', views_desk_officer.verify_payment, name='do_verify_payment'),
     path('dashboard/desk-officer/registration/', views_desk_officer.registration, name='do_registration'),
+    path('dashboard/desk-officer/attendance/', views_desk_officer.attendance_records, name='do_attendance'),
     path('dashboard/desk-officer/support/', views_desk_officer.support_inbox, name='do_support'),
     path('dashboard/desk-officer/support/<int:thread_id>/', views_desk_officer.support_thread, name='do_support_thread'),
     path('dashboard/desk-officer/support/<int:thread_id>/poll/', views_desk_officer.support_thread_poll, name='do_support_thread_poll'),
@@ -137,4 +141,6 @@ urlpatterns = [
     path('dashboard/super-admin/system-tools/', views_super_admin.system_tools, name='sa_system_tools'),
     path('dashboard/super-admin/system-tools/start-session/', views_super_admin.start_new_session, name='sa_start_new_session'),
     path('dashboard/super-admin/system-tools/promote-students/', views_super_admin.promote_students, name='sa_promote_students'),
+    path('dashboard/super-admin/tasks/', views_super_admin.assign_task, name='sa_assign_task'),
+    path('dashboard/super-admin/tasks/create/', views_super_admin.create_task, name='sa_create_task'),
 ]

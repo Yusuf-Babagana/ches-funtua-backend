@@ -15,6 +15,7 @@ NAV = [
     {'label': 'Faculty', 'url_name': 'portal:hod_lecturers'},
     {'label': 'Courses', 'url_name': 'portal:hod_courses'},
     {'label': 'Result Approvals', 'url_name': 'portal:hod_approvals'},
+    {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
 ]
 
 
@@ -196,6 +197,7 @@ def post_announcement(request):
         request.user, department,
         request.POST.get('title', ''), request.POST.get('body', ''),
         level=request.POST.get('level', ''), is_pinned=bool(request.POST.get('is_pinned')),
+        audience=request.POST.get('audience', 'everyone'),
     )
     if err:
         messages.error(request, err)

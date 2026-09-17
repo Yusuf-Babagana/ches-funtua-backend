@@ -627,11 +627,18 @@ class Announcement(models.Model):
     the student portal. `department`/`level` left blank means visible to
     everyone; set either to scope the audience.
     """
+    AUDIENCE_CHOICES = [
+        ('everyone', 'Everyone'),
+        ('students', 'Students Only'),
+        ('staff', 'Staff Only'),
+    ]
+
     title = models.CharField(max_length=200)
     body = models.TextField()
     posted_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, related_name='announcements_posted')
     department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True, related_name='announcements')
     level = models.CharField(max_length=10, choices=Course.LEVEL_CHOICES, blank=True)
+    audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES, default='everyone')
     is_pinned = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -699,3 +706,47 @@ class IndexInformation(models.Model):
 
     def __str__(self):
         return f"Index info - {self.student.matric_number}"
+
+
+class Notification(models.Model):
+    """A single in-app notification for one user, shown under the bell icon."""
+    recipient = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    link_name = models.CharField(max_length=100, blank=True, help_text='Optional Django URL name to link to.')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Notification'
+        verbose_name_plural = 'Notifications'
+
+    def __str__(self):
+        return f"{self.recipient} - {self.title}"
+
+
+class AssignedTask(models.Model):
+    """A task assigned to a staff member by the college (Super Admin)."""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+    ]
+
+    assigned_to = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='assigned_tasks')
+    assigned_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, related_name='tasks_created')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Assigned Task'
+        verbose_name_plural = 'Assigned Tasks'
+
+    def __str__(self):
+        return f"{self.title} -> {self.assigned_to}"

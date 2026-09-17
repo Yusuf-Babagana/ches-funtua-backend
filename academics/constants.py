@@ -13,3 +13,10 @@ fees are paid.
 
 MAX_CREDIT_UNITS_UNPAID = 8
 MAX_CREDIT_UNITS_PAID = 24
+
+# Every role except 'student' -- used to resolve "staff" audiences for
+# announcements/notifications and eligible AssignedTask assignees.
+STAFF_ROLES = [
+    'lecturer', 'hod', 'registrar', 'bursar',
+    'exam-officer', 'desk-officer', 'ict', 'super-admin',
+]

@@ -1,0 +1,27 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Notifications{% endblock %}
+{% block page_subtitle %}Everything posted or assigned to you, most recent first.{% endblock %}
+
+{% block dashboard_content %}
+{% if not notifications %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3.5rem 1.5rem;">
+        <h3 class="card-title">No notifications yet</h3>
+        <p class="card-description">Announcements and assigned tasks will show up here.</p>
+    </div>
+</div>
+{% else %}
+<div class="stack gap-3">
+    {% for note in notifications %}
+    <div class="card">
+        <div class="card-body">
+            <p style="font-weight:700;">{{ note.title }}</p>
+            {% if note.body %}<p class="text-sm text-muted" style="margin-top:0.25rem;">{{ note.body }}</p>{% endif %}
+            <p class="text-xs text-muted" style="margin-top:0.5rem;">{{ note.created_at|date:"M j, Y g:i A" }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

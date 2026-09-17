@@ -55,7 +55,29 @@
                 <div class="dash__brand-mark dash__brand-mark--logo" style="height:1.9rem;width:1.9rem;font-size:0.7rem;">CF</div>
                 <strong style="font-weight:800;">CHES Funtua</strong>
             </div>
-            <button type="button" class="dash__menu-btn" data-sidebar-toggle aria-label="Open menu">&#9776;</button>
+            <div class="dash__topbar-actions">
+                <div class="notif">
+                    <button type="button" class="dash__menu-btn" data-notif-toggle aria-label="Notifications">
+                        &#128276;
+                        {% if unread_notifications_count %}<span class="badge badge-danger notif-badge">{{ unread_notifications_count }}</span>{% endif %}
+                    </button>
+                    <div class="notif-panel" id="notif-panel">
+                        {% if recent_notifications %}
+                        {% for note in recent_notifications %}
+                        <div class="notif-panel__item">
+                            <p class="text-sm" style="font-weight:700;">{{ note.title }}{% if not note.is_read %} <span class="badge badge-danger" style="margin-left:0.35rem;">New</span>{% endif %}</p>
+                            {% if note.body %}<p class="text-xs text-muted" style="margin-top:0.2rem;">{{ note.body|truncatechars:80 }}</p>{% endif %}
+                            <p class="text-xs text-muted" style="margin-top:0.25rem;">{{ note.created_at|date:"M j, g:i A" }}</p>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="notif-panel__item text-sm text-muted">No notifications yet.</div>
+                        {% endif %}
+                        <div class="notif-panel__footer"><a href="{% url 'portal:notifications' %}" class="text-sm" style="font-weight:600;">View all</a></div>
+                    </div>
+                </div>
+                <button type="button" class="dash__menu-btn" data-sidebar-toggle aria-label="Open menu">&#9776;</button>
+            </div>
         </div>
 
         <div class="dash__content">

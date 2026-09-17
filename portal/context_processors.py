@@ -31,11 +31,28 @@ def announcements(request):
             Q(department__isnull=True) | Q(department=student.department)
         ).filter(
             Q(level='') | Q(level=student.level)
-        )
-    # Staff roles see everything -- department/level scoping only exists
-    # to narrow what students see, not to hide announcements from staff.
+        ).filter(audience__in=['everyone', 'students'])
+    else:
+        # Staff roles see everything regardless of department/level -- that
+        # scoping only exists to narrow what students see -- but still
+        # respect an explicit "students only" audience choice.
+        qs = qs.filter(audience__in=['everyone', 'staff'])
 
     return {'active_announcements': qs.order_by('-is_pinned', '-created_at')[:5]}
+
+
+def notifications(request):
+    """Injects the bell icon's unread count + recent dropdown list, same
+    reasoning as announcements()/support_unread_count() above."""
+    if not request.user.is_authenticated:
+        return {}
+
+    from . import services_notifications as svc
+
+    return {
+        'unread_notifications_count': svc.get_unread_count(request.user),
+        'recent_notifications': svc.get_recent(request.user),
+    }
 
 
 def support_unread_count(request):

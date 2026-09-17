@@ -16,6 +16,7 @@ NAV = [
     {'label': 'Dashboard', 'url_name': 'portal:dashboard_exam_officer'},
     {'label': 'Registration Approvals', 'url_name': 'portal:eo_registrations'},
     {'label': 'Result Compilation', 'url_name': 'portal:eo_results'},
+    {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
 ]
 
 

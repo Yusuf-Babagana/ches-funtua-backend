@@ -97,6 +97,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'portal.context_processors.announcements',
                 'portal.context_processors.support_unread_count',
+                'portal.context_processors.notifications',
             ],
         },
     },

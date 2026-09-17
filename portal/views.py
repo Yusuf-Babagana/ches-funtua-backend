@@ -1,10 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 
+from academics.constants import STAFF_ROLES
+from academics.models import AssignedTask
+from .decorators import role_required
 from .forms import LoginForm
 from .roles import ROLE_DASHBOARD_URL_NAME
 
@@ -103,6 +106,68 @@ def update_profile_picture(request):
         messages.success(request, 'Profile picture updated.')
 
     return redirect(next_url) if next_url else redirect(fallback_url)
+
+
+def _nav_for(request, active_url_name):
+    """
+    These two pages (notifications, tasks) are role-agnostic, but the
+    dashboard shell's sidebar still needs *that role's* nav items so the
+    user can navigate back out. Each views_<role>.py already owns its
+    own NAV list + _nav() -- reuse those instead of duplicating them.
+    """
+    from . import (
+        views_bursar, views_desk_officer, views_exam_officer, views_hod,
+        views_ict, views_lecturer, views_registrar, views_student, views_super_admin,
+    )
+    resolvers = {
+        'student': views_student._nav, 'lecturer': views_lecturer._nav,
+        'hod': views_hod._nav, 'registrar': views_registrar._nav,
+        'bursar': views_bursar._nav, 'desk-officer': views_desk_officer._nav,
+        'ict': views_ict._nav, 'exam-officer': views_exam_officer._nav,
+        'super-admin': views_super_admin._nav,
+    }
+    resolver = resolvers.get(request.user.role)
+    return resolver(active_url_name) if resolver else []
+
+
+@login_required
+def notifications_list(request):
+    """
+    The bell icon's "view all" page -- every role lands here the same
+    way, since Notification isn't role-specific. Viewing the list marks
+    everything on it read (same UX as the bell dropdown itself).
+    """
+    from . import services_notifications
+
+    notes = list(services_notifications.get_recent(request.user, limit=50))
+    services_notifications.mark_all_read(request.user)
+    return render(request, 'portal/notifications.html', {
+        'nav_items': _nav_for(request, 'portal:notifications'),
+        'page_title': 'Notifications',
+        'notifications': notes,
+    })
+
+
+@role_required(*STAFF_ROLES)
+def my_tasks(request):
+    """Item #18's "Other Assigned Task" page -- one shared view/template
+    for every staff role rather than duplicating it per dashboard."""
+    tasks = AssignedTask.objects.filter(assigned_to=request.user).select_related('assigned_by')
+    return render(request, 'portal/tasks.html', {
+        'nav_items': _nav_for(request, 'portal:my_tasks'),
+        'page_title': 'My Tasks',
+        'tasks': tasks,
+    })
+
+
+@role_required(*STAFF_ROLES)
+@require_http_methods(['POST'])
+def complete_task(request, task_id):
+    task = get_object_or_404(AssignedTask, id=task_id, assigned_to=request.user)
+    task.status = 'completed'
+    task.save(update_fields=['status', 'updated_at'])
+    messages.success(request, 'Task marked complete.')
+    return redirect('portal:my_tasks')
 
 
 # _placeholder_dashboard (and the per-role dashboard_* views that used

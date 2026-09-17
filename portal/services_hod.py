@@ -243,14 +243,18 @@ def reject_course_results(department, course_id, reason):
 # lets an HOD broadcast to the whole college.
 # ---------------------------------------------------------------------------
 
-def post_announcement(user, department, title, body, level='', is_pinned=False):
+def post_announcement(user, department, title, body, level='', is_pinned=False, audience='everyone'):
     title = (title or '').strip()
     body = (body or '').strip()
     if not title or not body:
         return None, 'Title and body are required.'
+    if audience not in dict(Announcement.AUDIENCE_CHOICES):
+        audience = 'everyone'
 
     announcement = Announcement.objects.create(
         title=title, body=body, posted_by=user, department=department,
-        level=level or '', is_pinned=is_pinned,
+        level=level or '', is_pinned=is_pinned, audience=audience,
     )
+    from . import services_notifications
+    services_notifications.create_notifications_for_announcement(announcement, exclude_user=user)
     return announcement, None

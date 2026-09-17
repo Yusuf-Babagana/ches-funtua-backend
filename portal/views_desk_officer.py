@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from academics.constants import MAX_CREDIT_UNITS_PAID
-from academics.models import Department
+from academics.models import Course, Department
 from users.models import Student
 
 from . import services_desk_officer as svc
@@ -28,7 +28,9 @@ NAV = [
     {'label': 'Queries', 'url_name': 'portal:do_queries'},
     {'label': 'Payments', 'url_name': 'portal:do_payments'},
     {'label': 'Manual Registration', 'url_name': 'portal:do_registration'},
+    {'label': 'Attendance', 'url_name': 'portal:do_attendance'},
     {'label': 'Support', 'url_name': 'portal:do_support'},
+    {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
 ]
 
 
@@ -200,6 +202,27 @@ def registration(request):
         'offerings': offerings,
         'issues': issues,
         'max_credit_units': MAX_CREDIT_UNITS_PAID,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Attendance records (item #20 -- read-only view of what lecturers marked)
+# ---------------------------------------------------------------------------
+
+@role_required('desk-officer')
+def attendance_records(request):
+    course_id = request.GET.get('course_id') or None
+    date = request.GET.get('date') or None
+    query = request.GET.get('q', '').strip() or None
+    records = svc.get_attendance_records(course_id=course_id, date=date, query=query)
+    return render(request, 'dashboard/desk_officer/attendance.html', {
+        'nav_items': _nav('portal:do_attendance'),
+        'page_title': 'Attendance Records',
+        'records': records,
+        'courses': Course.objects.order_by('code'),
+        'course_id': course_id,
+        'date': date,
+        'query': query or '',
     })
 
 

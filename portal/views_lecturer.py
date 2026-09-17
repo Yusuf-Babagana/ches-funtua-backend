@@ -17,6 +17,7 @@ NAV = [
     {'label': 'Dashboard', 'url_name': 'portal:dashboard_lecturer'},
     {'label': 'My Courses', 'url_name': 'portal:lecturer_courses'},
     {'label': 'Attendance', 'url_name': 'portal:lecturer_attendance'},
+    {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
 ]
 
 
@@ -216,6 +217,7 @@ def post_announcement(request):
     announcement, err = svc.post_announcement(
         lecturer, request.POST.get('title', ''), request.POST.get('body', ''),
         level=request.POST.get('level', ''), is_pinned=bool(request.POST.get('is_pinned')),
+        audience=request.POST.get('audience', 'everyone'),
     )
     if err:
         messages.error(request, err)

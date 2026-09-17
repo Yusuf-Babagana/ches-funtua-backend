@@ -33,7 +33,7 @@ from django.utils import timezone
 
 from academics.constants import MAX_CREDIT_UNITS_PAID
 from academics.models import (
-    Course, CourseOffering, CourseRegistration, Department, Grade,
+    Attendance, Course, CourseOffering, CourseRegistration, Department, Grade,
     Semester, StudentDocument, StudentQuery,
 )
 from finance.models import Invoice, Payment
@@ -147,6 +147,28 @@ def search_students(query=None, department_id=None, level=None):
             'open_queries': StudentQuery.objects.filter(student=student, status__in=['open', 'in_progress']).count(),
         })
     return results
+
+
+# ---------------------------------------------------------------------------
+# Attendance records (item #20 -- lecturer attendance, read-only for the
+# desk officer; marking already happens in services_lecturer.mark_attendance
+# and lands straight in the shared Attendance model, so there's no separate
+# "submission" step -- this just surfaces what's already there).
+# ---------------------------------------------------------------------------
+
+def get_attendance_records(course_id=None, date=None, query=None):
+    records = Attendance.objects.select_related('student__user', 'course', 'marked_by__user')
+    if course_id:
+        records = records.filter(course_id=course_id)
+    if date:
+        records = records.filter(date=date)
+    if query:
+        records = records.filter(
+            Q(student__matric_number__icontains=query) |
+            Q(student__user__first_name__icontains=query) |
+            Q(student__user__last_name__icontains=query)
+        )
+    return records.order_by('-date')[:200]
 
 
 def get_student_profile(student_id):

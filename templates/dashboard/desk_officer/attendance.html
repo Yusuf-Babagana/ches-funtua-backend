@@ -1,0 +1,68 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Attendance Records{% endblock %}
+{% block page_subtitle %}Read-only view of attendance already marked by lecturers -- no separate submission step.{% endblock %}
+
+{% block dashboard_content %}
+<div class="card" style="margin-bottom:1.25rem;">
+    <div class="card-body">
+        <form method="get" class="grid grid-3" style="gap:0.75rem;">
+            <div class="field">
+                <label>Course</label>
+                <select name="course_id">
+                    <option value="">All courses</option>
+                    {% for course in courses %}
+                    <option value="{{ course.id }}" {% if course_id == course.id|stringformat:"s" %}selected{% endif %}>{{ course.code }} - {{ course.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label>Date</label>
+                <input type="date" name="date" value="{{ date|default:'' }}">
+            </div>
+            <div class="field">
+                <label>Search Student</label>
+                <input type="text" name="q" value="{{ query }}" placeholder="Matric no. or name">
+            </div>
+            <div style="grid-column: 1 / -1;">
+                <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                <a href="{% url 'portal:do_attendance' %}" class="btn btn-outline btn-sm">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if not records %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3rem 1.5rem;">
+        <p class="card-description">No attendance records match this filter.</p>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrap" style="border:none;">
+            <table class="data-table">
+                <thead><tr><th>Date</th><th>Course</th><th>Student</th><th>Status</th><th>Marked By</th></tr></thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td class="text-sm">{{ record.date|date:"M j, Y" }}</td>
+                        <td class="mono text-xs">{{ record.course.code }}</td>
+                        <td>{{ record.student.user.get_full_name }} <span class="text-xs text-muted mono">{{ record.student.matric_number }}</span></td>
+                        <td>
+                            {% if record.status == 'present' %}<span class="badge badge-success">Present</span>
+                            {% elif record.status == 'absent' %}<span class="badge badge-danger">Absent</span>
+                            {% elif record.status == 'late' %}<span class="badge badge-warning">Late</span>
+                            {% else %}<span class="badge badge-neutral">Excused</span>{% endif %}
+                        </td>
+                        <td class="text-sm text-muted">{{ record.marked_by.user.get_full_name|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
