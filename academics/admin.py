@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (Department, Semester, Course, Enrollment, CourseRegistration,
 CourseOffering, Grade, AcademicLevelConfiguration,
-Program, Announcement, PracticalCenter, PracticalCenterSelection, IndexInformation)
+Program, Announcement, PracticalCenter, PracticalCenterSelection, IndexInformation,
+AcademicCalendarEvent)
 
 admin.site.register(Department)
 admin.site.register(Semester)
@@ -47,6 +48,14 @@ class IndexInformationAdmin(admin.ModelAdmin):
     list_display = ['student', 'state_of_origin', 'submitted_at']
     raw_id_fields = ['student']
     search_fields = ['student__matric_number']
+
+
+@admin.register(AcademicCalendarEvent)
+class AcademicCalendarEventAdmin(admin.ModelAdmin):
+    list_display = ['session', 'level', 'semester', 'order', 'activity', 'start_date', 'end_date', 'duration_text']
+    list_filter = ['session', 'level', 'semester']
+    search_fields = ['activity', 'notes']
+    ordering = ['session', 'level', 'semester', 'order']
 
 
 admin.site.site_header = "College CMS Admin"

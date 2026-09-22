@@ -726,6 +726,37 @@ class Notification(models.Model):
         return f"{self.recipient} - {self.title}"
 
 
+class AcademicCalendarEvent(models.Model):
+    """
+    A single dated activity from the college's official academic calendar
+    (e.g. course registration, lectures, exams, breaks). Levels run
+    different date ranges for the same session, so each event is scoped
+    to one level (blank = applies to every level).
+    """
+    session = models.CharField(max_length=9, help_text="e.g. 2026/2027")
+    level = models.CharField(max_length=10, choices=Course.LEVEL_CHOICES, blank=True,
+                              help_text="Blank = applies to all levels")
+    semester = models.CharField(max_length=10, choices=Semester.SEMESTER_CHOICES)
+    order = models.PositiveIntegerField(default=0, help_text="Display sequence (matches the official calendar's S/N)")
+    activity = models.CharField(max_length=255)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    duration_text = models.CharField(max_length=50, blank=True,
+                                      help_text="As stated on the official calendar, e.g. '4 weeks', '10 days'")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['session', 'level', 'semester', 'order']
+        verbose_name = 'Academic Calendar Event'
+        verbose_name_plural = 'Academic Calendar Events'
+
+    def __str__(self):
+        level_label = self.get_level_display() if self.level else 'All Levels'
+        return f"{self.session} {level_label} - {self.activity}"
+
+
 class AssignedTask(models.Model):
     """A task assigned to a staff member by the college (Super Admin)."""
     STATUS_CHOICES = [

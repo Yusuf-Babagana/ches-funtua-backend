@@ -25,13 +25,14 @@ views_registration.py) in the same pass, so both layers enforce the
 same rule.
 """
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.utils import timezone
 
 from academics.constants import MAX_CREDIT_UNITS_PAID, MAX_CREDIT_UNITS_UNPAID
 from academics.models import (
-    AcademicLevelConfiguration, Course, CourseOffering, CourseRegistration,
-    Grade, IndexInformation, PracticalCenter, PracticalCenterSelection, Semester,
+    AcademicCalendarEvent, AcademicLevelConfiguration, Course, CourseOffering,
+    CourseRegistration, Grade, IndexInformation, PracticalCenter,
+    PracticalCenterSelection, Semester,
 )
 from finance.models import FeeItem, Invoice
 
@@ -773,4 +774,31 @@ def get_transcript_data(student):
             'total_points_earned': round(cumulative_points, 2),
             'degree_class': _degree_class(cgpa),
         },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Academic calendar
+# ---------------------------------------------------------------------------
+
+def get_academic_calendar(student):
+    """
+    Official academic calendar events for the student's level, grouped by
+    semester. `level=''` events apply to every level, so they're merged in.
+    """
+    events = AcademicCalendarEvent.objects.filter(
+        Q(level=student.level) | Q(level=''),
+    ).order_by('session', 'semester', 'order')
+
+    session = events.first().session if events.exists() else None
+    by_semester = {'first': [], 'second': []}
+    for event in events:
+        by_semester.setdefault(event.semester, []).append(event)
+
+    return {
+        'calendar_session': session,
+        'calendar_semesters': [
+            ('First', by_semester.get('first', [])),
+            ('Second', by_semester.get('second', [])),
+        ],
     }

@@ -32,6 +32,7 @@ NAV = [
     {'label': 'Fees', 'url_name': 'portal:student_fees'},
     {'label': 'Other Charges', 'url_name': 'portal:student_fee_catalog'},
     {'label': 'Carry-Over', 'url_name': 'portal:student_carryover'},
+    {'label': 'Academic Calendar', 'url_name': 'portal:student_academic_calendar'},
     {'label': 'Support', 'url_name': 'portal:student_support'},
     {'label': 'Payments', 'url_name': 'portal:student_payments'},
     {'label': 'Settings', 'url_name': 'portal:student_settings'},
@@ -376,6 +377,16 @@ def practical_center(request):
         request, 'portal:student_practical_center',
         page_title='Practical Center',
         **svc.get_practical_center_status(student),
+    ))
+
+
+@role_required('student')
+def academic_calendar(request):
+    student = request.user.student_profile
+    return render(request, 'dashboard/student/academic_calendar.html', _ctx(
+        request, 'portal:student_academic_calendar',
+        page_title='Academic Calendar',
+        **svc.get_academic_calendar(student),
     ))
 
 
