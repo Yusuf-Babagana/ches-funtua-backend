@@ -35,6 +35,7 @@ urlpatterns = [
     path('dashboard/student/carryover/', views_student.carryover, name='student_carryover'),
     path('dashboard/student/carryover/<int:course_id>/register/', views_student.register_carryover, name='student_register_carryover'),
     path('dashboard/student/carryover/<int:registration_id>/slip/', views_student.carryover_slip, name='student_carryover_slip'),
+    path('dashboard/student/academic-calendar/', views_student.academic_calendar, name='student_academic_calendar'),
     path('dashboard/student/support/', views_student.support, name='student_support'),
     path('dashboard/student/support/poll/', views_student.support_poll, name='student_support_poll'),
     path('dashboard/student/support/send/', views_student.support_send, name='student_support_send'),

@@ -1,0 +1,74 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Academic Calendar{% endblock %}
+{% block page_subtitle %}Official {{ calendar_session|default:"—" }} calendar for {{ student.get_level_display }}.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sem-header { display:flex; justify-content:space-between; align-items:center; padding:1.1rem 1.25rem; cursor:pointer; }
+    .sem-header:hover { background:var(--slate-50); }
+    .sem-body { display:none; border-top:1px solid var(--slate-100); }
+    .sem-body.is-open { display:block; }
+    @media print { .no-print { display:none !important; } }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="no-print" style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
+    <button type="button" class="btn btn-primary" onclick="window.print()">Print / Download</button>
+</div>
+
+{% if not calendar_session %}
+<div class="card" style="border-style:dashed;">
+    <div class="card-body" style="text-align:center; padding:3.5rem 1.5rem;">
+        <p style="font-weight:600;">No academic calendar has been published yet.</p>
+        <p class="text-sm text-muted">Check back once the registrar publishes the next session's dates.</p>
+    </div>
+</div>
+{% else %}
+<div class="stack gap-3">
+    {% for label, events in calendar_semesters %}
+    <div class="card" style="overflow:hidden;">
+        <div class="sem-header" onclick="this.nextElementSibling.classList.toggle('is-open')">
+            <p style="font-weight:700;">{{ label }} Semester</p>
+            <span class="badge badge-neutral">{{ events|length }} activities</span>
+        </div>
+        <div class="sem-body">
+            <div class="table-wrap" style="border:none; border-radius:0;">
+                <table class="data-table">
+                    <thead><tr><th>S/N</th><th>Activity</th><th>Date(s)</th><th>Duration</th></tr></thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td class="mono">{{ event.order }}</td>
+                            <td>
+                                {{ event.activity }}
+                                {% if event.notes %}<br><span class="text-xs text-muted">{{ event.notes }}</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if event.start_date and event.end_date %}
+                                    {{ event.start_date|date:"j M Y" }} &ndash; {{ event.end_date|date:"j M Y" }}
+                                {% elif event.start_date %}
+                                    {{ event.start_date|date:"j M Y" }}
+                                {% else %}
+                                    <span class="text-muted">&mdash;</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ event.duration_text|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelector('.sem-body')?.classList.add('is-open');
+</script>
+{% endblock %}
