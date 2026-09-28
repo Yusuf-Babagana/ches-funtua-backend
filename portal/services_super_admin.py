@@ -44,9 +44,10 @@ from datetime import datetime, timedelta
 
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from academics.constants import STAFF_ROLES
-from academics.models import AcademicLevelConfiguration, AssignedTask, Course, Department, Semester
+from academics.models import AcademicLevelConfiguration, AssignedTask, Course, Department, PromotionRun, Semester
 from users.models import Lecturer, Student, User
 
 LEVEL_CHOICES = [('100', '100 Level'), ('200', '200 Level'), ('300', '300 Level')]
@@ -295,13 +296,93 @@ def start_new_session(session_name, start_date):
     return new_semester, None
 
 
-def promote_students():
-    """No CGPA/credit/clearance eligibility gate -- see module docstring."""
+def promote_students(run_by=None):
+    """No CGPA/credit/clearance eligibility gate -- see module docstring.
+
+    Snapshots each affected student's prior (level, status) onto a
+    PromotionRun before mutating anything, so the run can be undone with
+    undo_last_promotion() -- e.g. if it was run by mistake.
+    """
     with transaction.atomic():
-        graduated = Student.objects.filter(level='300', status='active').update(status='graduated')
-        to_300 = Student.objects.filter(level='200', status='active').update(level='300')
-        to_200 = Student.objects.filter(level='100', status='active').update(level='200')
+        ids_300 = list(Student.objects.filter(level='300', status='active').values_list('id', flat=True))
+        ids_200 = list(Student.objects.filter(level='200', status='active').values_list('id', flat=True))
+        ids_100 = list(Student.objects.filter(level='100', status='active').values_list('id', flat=True))
+
+        snapshot = (
+            [{'student_id': sid, 'prev_level': '300', 'prev_status': 'active'} for sid in ids_300]
+            + [{'student_id': sid, 'prev_level': '200', 'prev_status': 'active'} for sid in ids_200]
+            + [{'student_id': sid, 'prev_level': '100', 'prev_status': 'active'} for sid in ids_100]
+        )
+
+        graduated = Student.objects.filter(id__in=ids_300).update(status='graduated')
+        to_300 = Student.objects.filter(id__in=ids_200).update(level='300')
+        to_200 = Student.objects.filter(id__in=ids_100).update(level='200')
+
+        PromotionRun.objects.create(
+            run_by=run_by, snapshot=snapshot,
+            graduated_count=graduated, promoted_to_300_count=to_300, promoted_to_200_count=to_200,
+        )
     return {'graduated': graduated, 'promoted_to_300': to_300, 'promoted_to_200': to_200}
+
+
+def get_last_promotion_run():
+    """The most recent promotion run that hasn't already been undone, or
+    None. Only this one can be undone -- like a single-level undo stack."""
+    return PromotionRun.objects.filter(undone_at__isnull=True).select_related('run_by').first()
+
+
+def undo_last_promotion(undone_by=None):
+    run = get_last_promotion_run()
+    if not run:
+        return None, 'No promotion run to undo.'
+
+    with transaction.atomic():
+        restored = 0
+        for entry in run.snapshot:
+            restored += Student.objects.filter(id=entry['student_id']).update(
+                level=entry['prev_level'], status=entry['prev_status'],
+            )
+        run.undone_at = timezone.now()
+        run.undone_by = undone_by
+        run.save(update_fields=['undone_at', 'undone_by'])
+
+    return restored, None
+
+
+# ---------------------------------------------------------------------------
+# Per-student level/status override (manual correction, e.g. demoting a
+# wrongly graduated student back to 300 level)
+# ---------------------------------------------------------------------------
+
+def search_students(query=None, level=None, status=None):
+    students = Student.objects.select_related('user', 'department').order_by('matric_number')
+    if query:
+        students = students.filter(
+            Q(matric_number__icontains=query)
+            | Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(user__email__icontains=query)
+        )
+    if level:
+        students = students.filter(level=level)
+    if status:
+        students = students.filter(status=status)
+    return students[:100]
+
+
+def override_student_level(student_id, new_level, new_status):
+    try:
+        student = Student.objects.get(id=student_id)
+    except (Student.DoesNotExist, ValueError, TypeError):
+        return None, 'Student not found.'
+    if new_level not in dict(LEVEL_CHOICES):
+        return None, 'Invalid level.'
+    if new_status not in dict(Student.STATUS_CHOICES):
+        return None, 'Invalid status.'
+    student.level = new_level
+    student.status = new_status
+    student.save(update_fields=['level', 'status'])
+    return student, None
 
 
 # ---------------------------------------------------------------------------

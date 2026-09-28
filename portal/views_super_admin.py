@@ -17,7 +17,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
 from academics.models import Department
-from users.models import Lecturer
+from users.models import Lecturer, Student
 
 from . import services_super_admin as svc
 from .decorators import role_required
@@ -28,6 +28,7 @@ NAV = [
     {'label': 'Semesters', 'url_name': 'portal:sa_semesters'},
     {'label': 'Level Config', 'url_name': 'portal:sa_level_config'},
     {'label': 'System Tools', 'url_name': 'portal:sa_system_tools'},
+    {'label': 'Student Levels', 'url_name': 'portal:sa_students'},
     {'label': 'Assign Task', 'url_name': 'portal:sa_assign_task'},
     {'label': 'My Tasks', 'url_name': 'portal:my_tasks'},
     {'label': 'ICT: Users', 'url_name': 'portal:ict_user_management'},
@@ -177,6 +178,7 @@ def system_tools(request):
         'nav_items': _nav('portal:sa_system_tools'),
         'page_title': 'System Tools',
         'current_semester': svc.get_dashboard_data()['current_semester'],
+        'last_promotion_run': svc.get_last_promotion_run(),
     })
 
 
@@ -198,7 +200,7 @@ def promote_students(request):
         messages.error(request, 'You must confirm this destructive action before it runs.')
         return redirect('portal:sa_system_tools')
 
-    summary = svc.promote_students()
+    summary = svc.promote_students(run_by=request.user)
     messages.success(
         request,
         f"Promotion complete: {summary['graduated']} graduated, "
@@ -206,6 +208,49 @@ def promote_students(request):
         f"{summary['promoted_to_200']} promoted to 200 level.",
     )
     return redirect('portal:sa_system_tools')
+
+
+@role_required('super-admin')
+@require_POST
+def undo_last_promotion(request):
+    restored, error = svc.undo_last_promotion(undone_by=request.user)
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, f'Promotion undone: {restored} student(s) restored to their prior level/status.')
+    return redirect('portal:sa_system_tools')
+
+
+# ---------------------------------------------------------------------------
+# Student Levels (manual per-student level/status correction, e.g.
+# demoting a wrongly graduated student back down)
+# ---------------------------------------------------------------------------
+
+@role_required('super-admin')
+def students(request):
+    if request.method == 'POST':
+        student, error = svc.override_student_level(
+            request.POST.get('student_id'), request.POST.get('level'), request.POST.get('status'),
+        )
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(
+                request,
+                f'{student.matric_number} set to {student.get_level_display()} ({student.get_status_display()}).',
+            )
+        return redirect(request.get_full_path())
+
+    query = request.GET.get('q', '').strip()
+    return render(request, 'dashboard/super_admin/students.html', {
+        'nav_items': _nav('portal:sa_students'),
+        'page_title': 'Student Levels',
+        'students': svc.search_students(query=query or None, level=request.GET.get('level') or None, status=request.GET.get('status') or None),
+        'query': query,
+        'filters': request.GET,
+        'level_choices': svc.LEVEL_CHOICES,
+        'status_choices': Student.STATUS_CHOICES,
+    })
 
 
 @role_required('super-admin')

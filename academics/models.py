@@ -781,3 +781,33 @@ class AssignedTask(models.Model):
 
     def __str__(self):
         return f"{self.title} -> {self.assigned_to}"
+
+
+class PromotionRun(models.Model):
+    """A record of one bulk 'Promote Students' click, snapshotting each
+    affected student's prior level/status so the run can be undone."""
+
+    run_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, related_name='promotion_runs')
+    snapshot = models.JSONField(
+        default=list,
+        help_text="List of {student_id, prev_level, prev_status} for every student this run touched.",
+    )
+    graduated_count = models.PositiveIntegerField(default=0)
+    promoted_to_300_count = models.PositiveIntegerField(default=0)
+    promoted_to_200_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    undone_at = models.DateTimeField(null=True, blank=True)
+    undone_by = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='promotion_runs_undone')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Promotion Run'
+        verbose_name_plural = 'Promotion Runs'
+
+    def __str__(self):
+        status = 'undone' if self.undone_at else 'active'
+        return f"Promotion run {self.created_at:%Y-%m-%d %H:%M} ({status})"
+
+    @property
+    def is_undone(self):
+        return self.undone_at is not None
