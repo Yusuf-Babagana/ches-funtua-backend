@@ -142,6 +142,8 @@ urlpatterns = [
     path('dashboard/super-admin/system-tools/', views_super_admin.system_tools, name='sa_system_tools'),
     path('dashboard/super-admin/system-tools/start-session/', views_super_admin.start_new_session, name='sa_start_new_session'),
     path('dashboard/super-admin/system-tools/promote-students/', views_super_admin.promote_students, name='sa_promote_students'),
+    path('dashboard/super-admin/system-tools/undo-promotion/', views_super_admin.undo_last_promotion, name='sa_undo_last_promotion'),
+    path('dashboard/super-admin/students/', views_super_admin.students, name='sa_students'),
     path('dashboard/super-admin/tasks/', views_super_admin.assign_task, name='sa_assign_task'),
     path('dashboard/super-admin/tasks/create/', views_super_admin.create_task, name='sa_create_task'),
 ]
